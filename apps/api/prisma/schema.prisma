@@ -1,0 +1,364 @@
+// Prisma Schema for BarberSaas
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============= ENUMS =============
+
+enum UserRole {
+  CUSTOMER
+  BARBER
+  ADMIN
+  OWNER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SERVICE
+}
+
+// ============= MODELS =============
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  avatar    String?
+  role      UserRole @default(CUSTOMER)
+  tenantId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id])
+  barber              Barber?
+  customerAppointments Appointment[]       @relation("CustomerAppointments")
+  createdTransactions Transaction[]
+  openedCashFlows     CashFlow[]          @relation("OpenedBy")
+  closedCashFlows     CashFlow[]          @relation("ClosedBy")
+  refreshTokens       RefreshToken[]
+  pushTokens          PushToken[]
+  reviews             Review[]
+
+  @@index([email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  phone     String
+  address   String
+  city      String
+  state     String
+  zipCode   String
+  latitude  Float?
+  longitude Float?
+  openTime  String
+  closeTime String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users        User[]
+  barbers      Barber[]
+  services     Service[]
+  appointments Appointment[]
+  transactions Transaction[]
+  cashFlows    CashFlow[]
+  promotions   Promotion[]
+  reviews      Review[]
+
+  @@index([slug])
+  @@index([city])
+  @@map("tenants")
+}
+
+model Barber {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  tenantId       String
+  specialties    String[]
+  commissionRate Float    @default(0.5)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments Appointment[]   @relation("BarberAppointments")
+  schedules    Schedule[]
+  reviews      Review[]
+  services     BarberService[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("barbers")
+}
+
+model Schedule {
+  id        String   @id @default(uuid())
+  barberId  String
+  dayOfWeek Int // 0 = Domingo, 1 = Segunda, etc.
+  startTime String
+  endTime   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([barberId])
+  @@map("schedules")
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  price       Float
+  duration    Int // em minutos
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  barbers      BarberService[]
+
+  @@index([tenantId])
+  @@map("services")
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  tenantId    String
+  customerId  String
+  barberId    String
+  serviceId   String
+  scheduledAt DateTime
+  status      AppointmentStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer    User         @relation("CustomerAppointments", fields: [customerId], references: [id])
+  barber      Barber       @relation("BarberAppointments", fields: [barberId], references: [id])
+  service     Service      @relation(fields: [serviceId], references: [id])
+  payment     Payment?
+  transaction Transaction?
+  review      Review?
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([barberId])
+  @@index([scheduledAt])
+  @@map("appointments")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  appointmentId String        @unique
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  pixKey        String?
+  pixQrCode     String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  tenantId      String
+  type          TransactionType
+  category      String
+  amount        Float
+  description   String?
+  paymentMethod PaymentMethod?
+  appointmentId String?         @unique
+  cashFlowId    String?
+  createdBy     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  cashFlow    CashFlow?    @relation(fields: [cashFlowId], references: [id])
+  user        User         @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([cashFlowId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+model CashFlow {
+  id             String        @id @default(uuid())
+  tenantId       String
+  date           DateTime      @db.Date
+  openingBalance Float
+  closingBalance Float?
+  totalIncome    Float         @default(0)
+  totalExpense   Float         @default(0)
+  openedBy       String
+  closedBy       String?
+  openedAt       DateTime      @default(now())
+  closedAt       DateTime?
+  isOpen         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  openedByUser User          @relation("OpenedBy", fields: [openedBy], references: [id])
+  closedByUser User?         @relation("ClosedBy", fields: [closedBy], references: [id])
+  transactions Transaction[]
+
+  @@index([tenantId])
+  @@index([date])
+  @@index([isOpen])
+  @@map("cash_flows")
+}
+
+model Promotion {
+  id          String        @id @default(uuid())
+  tenantId    String
+  code        String        @unique
+  name        String
+  description String?
+  type        PromotionType
+  value       Float
+  startDate   DateTime
+  endDate     DateTime
+  maxUses     Int?
+  currentUses Int           @default(0)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([code])
+  @@index([startDate, endDate])
+  @@map("promotions")
+}
+
+model Review {
+  id            String   @id @default(uuid())
+  tenantId      String
+  customerId    String
+  barberId      String
+  appointmentId String   @unique
+  rating        Int // 1-5
+  comment       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer    User        @relation(fields: [customerId], references: [id])
+  barber      Barber      @relation(fields: [barberId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([barberId])
+  @@index([rating])
+  @@map("reviews")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  device    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+model BarberService {
+  barberId  String
+  serviceId String
+  createdAt DateTime @default(now())
+
+  barber  Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, serviceId])
+  @@index([barberId])
+  @@index([serviceId])
+  @@map("barber_services")
+}
