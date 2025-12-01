@@ -19,6 +19,7 @@ export default function DashboardLayout({
       setIsLoading(false);
       if (!isAuthenticated) {
         router.push('/login');
+        return;
       }
     }, 100);
 

@@ -1,5 +1,26 @@
-import { redirect } from 'next/navigation';
+"use client";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/store';
 
 export default function Home() {
-  redirect('/dashboard');
+  const router = useRouter();
+  const { isAuthenticated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login');
+      return;
+    }
+    const role = (user?.role || '').toUpperCase();
+    if (role === 'OWNER' || role === 'ADMIN') {
+      router.replace('/dashboard/admin');
+    } else if (role === 'BARBER') {
+      router.replace('/dashboard/barber');
+    } else {
+      router.replace('/client');
+    }
+  }, [isAuthenticated, user, router]);
+
+  return null;
 }

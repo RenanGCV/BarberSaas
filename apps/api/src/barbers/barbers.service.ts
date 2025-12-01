@@ -7,16 +7,25 @@ export class BarbersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createBarberDto: CreateBarberDto, tenantId: string) {
-    // Verificar se usuário existe e pertence ao tenant
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: createBarberDto.userId,
-        tenantId,
-      },
+    // Verificar se usuário existe
+    let user = await this.prisma.user.findUnique({
+      where: { id: createBarberDto.userId },
     });
 
     if (!user) {
-      throw new NotFoundException('Usuário não encontrado neste estabelecimento');
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    // Garantir vínculo ao tenant atual caso ainda não tenha
+    if (!user.tenantId) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { tenantId },
+      });
+    }
+
+    if (user.tenantId !== tenantId) {
+      throw new BadRequestException('Usuário pertence a outro estabelecimento');
     }
 
     // Verificar se já não é barbeiro
@@ -29,10 +38,16 @@ export class BarbersService {
     }
 
     // Criar barbeiro e atualizar role do usuário
+    const commissionRate = (createBarberDto as any).commission != null
+      ? Math.max(0, Math.min(100, Number((createBarberDto as any).commission))) / 100
+      : undefined;
+
     const barber = await this.prisma.barber.create({
       data: {
-        ...createBarberDto,
+        userId: createBarberDto.userId,
         tenantId,
+        specialties: createBarberDto.specialties || [],
+        ...(commissionRate != null ? { commissionRate } : {}),
       },
       include: {
         user: {
@@ -200,9 +215,16 @@ export class BarbersService {
   async update(id: string, updateBarberDto: UpdateBarberDto, tenantId: string) {
     await this.findOne(id, tenantId);
 
+    const commissionRate = (updateBarberDto as any).commission != null
+      ? Math.max(0, Math.min(100, Number((updateBarberDto as any).commission))) / 100
+      : undefined;
+
     return this.prisma.barber.update({
       where: { id },
-      data: updateBarberDto,
+      data: {
+        specialties: updateBarberDto.specialties,
+        ...(commissionRate != null ? { commissionRate } : {}),
+      },
       include: {
         user: {
           select: {

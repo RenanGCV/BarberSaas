@@ -32,10 +32,17 @@ export default function LoginPage() {
       login(user, accessToken, refreshToken);
       toast.success('Login realizado com sucesso!');
       
-      // Aguarda um pouco para garantir que o estado foi atualizado
+      // Redireciona por papel
       setTimeout(() => {
-        router.replace('/dashboard');
-      }, 100);
+        const role = (user?.role || '').toUpperCase();
+        if (role === 'OWNER' || role === 'ADMIN') {
+          router.replace('/dashboard/admin');
+        } else if (role === 'BARBER') {
+          router.replace('/dashboard/barber');
+        } else {
+          router.replace('/client');
+        }
+      }, 120);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erro ao fazer login');
       console.error('Login error:', error);
