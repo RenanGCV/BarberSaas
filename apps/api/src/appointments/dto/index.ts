@@ -55,3 +55,50 @@ export class ChangeStatusDto {
   @IsNotEmpty()
   status: AppointmentStatus;
 }
+
+export class QueryAppointmentDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  barberId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiProperty({ required: false, enum: AppointmentStatus })
+  @IsOptional()
+  @IsEnum(AppointmentStatus)
+  status?: AppointmentStatus;
+
+  @ApiProperty({ required: false, example: '2024-01-01' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ required: false, example: '2024-12-31' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({ required: false, default: 20 })
+  @IsOptional()
+  limit?: number;
+}
+
+export class CheckAvailabilityDto {
+  @ApiProperty({ example: '2024-02-15' })
+  @IsDateString()
+  @IsNotEmpty()
+  date: string;
+
+  @ApiProperty({ example: 'service-id-123' })
+  @IsString()
+  @IsNotEmpty()
+  serviceId: string;
+}

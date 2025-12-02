@@ -21,6 +21,40 @@ export class UsersService {
     });
   }
 
+  /**
+   * Buscar apenas usuários disponíveis para se tornarem colaboradores
+   * (usuários que NÃO possuem registro na tabela Barber)
+   */
+  async findAvailableForBarber(tenantId?: string) {
+    // Buscar todos os userIds que já são barbeiros
+    const existingBarbers = await this.prisma.barber.findMany({
+      select: { userId: true },
+    });
+
+    const barberUserIds = existingBarbers.map(b => b.userId);
+
+    // Buscar usuários que não estão na lista de barbeiros
+    return this.prisma.user.findMany({
+      where: {
+        id: {
+          notIn: barberUserIds,
+        },
+        isActive: true,
+        ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        avatar: true,
+        role: true,
+        tenantId: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },

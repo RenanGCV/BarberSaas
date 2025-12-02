@@ -44,25 +44,85 @@ export default function NewServicePage() {
       </div>
       <div className="card space-y-4">
         <div>
-          <label className="label">Nome</label>
-          <input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          <label className="label">Nome do Serviço</label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            {['Corte Simples', 'Corte + Barba', 'Barba', 'Degradê', 'Sobrancelha', 'Relaxamento', 'Corte Premium', 'Pacote Completo'].map(serviceName => (
+              <button
+                key={serviceName}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, name: serviceName }))}
+                className={`p-3 rounded-lg border-2 transition-all text-sm ${
+                  form.name === serviceName
+                    ? 'border-primary bg-primary/10 font-semibold'
+                    : 'border-secondary hover:border-primary/50'
+                }`}
+              >
+                {serviceName}
+              </button>
+            ))}
+          </div>
+          <input 
+            className="input" 
+            value={form.name} 
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="Ou insira um nome personalizado"
+          />
         </div>
         <div>
           <label className="label">Descrição</label>
-          <input className="input" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+          <input 
+            className="input" 
+            value={form.description} 
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Ex: Corte de cabelo tradicional com acabamento"
+          />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="label">Preço</label>
+            <label className="label">Preço (R$)</label>
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[30, 45, 70, 90].map(value => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, price: value }))}
+                  className={`p-2 rounded-lg border-2 transition-all ${
+                    form.price === value
+                      ? 'border-primary bg-primary text-background font-bold'
+                      : 'border-secondary hover:border-primary/50'
+                  }`}
+                >
+                  R${value}
+                </button>
+              ))}
+            </div>
             <input className="input" type="number" min={0} step={0.01}
                    value={form.price}
-                   onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))} />
+                   onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
+                   placeholder="Ou insira um valor personalizado" />
           </div>
           <div>
-            <label className="label">Duração (min)</label>
+            <label className="label">Duração (minutos)</label>
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[30, 45, 60, 90].map(value => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, duration: value }))}
+                  className={`p-2 rounded-lg border-2 transition-all ${
+                    form.duration === value
+                      ? 'border-primary bg-primary text-background font-bold'
+                      : 'border-secondary hover:border-primary/50'
+                  }`}
+                >
+                  {value}min
+                </button>
+              ))}
+            </div>
             <input className="input" type="number" min={5} step={5}
                    value={form.duration}
-                   onChange={(e) => setForm((f) => ({ ...f, duration: Number(e.target.value) }))} />
+                   onChange={(e) => setForm((f) => ({ ...f, duration: Number(e.target.value) }))}
+                   placeholder="Ou insira uma duração personalizada" />
           </div>
         </div>
         <div>

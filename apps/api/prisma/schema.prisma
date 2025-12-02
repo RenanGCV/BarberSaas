@@ -269,6 +269,19 @@ model CashFlow {
   closingBalance Float?
   totalIncome    Float         @default(0)
   totalExpense   Float         @default(0)
+  
+  // Campos de contagem por método de pagamento
+  expectedCash       Float? // Dinheiro esperado
+  countedCash        Float? // Dinheiro contado
+  expectedPix        Float? // Pix esperado
+  countedPix         Float? // Pix contado
+  expectedDebit      Float? // Débito esperado
+  countedDebit       Float? // Débito contado
+  expectedCredit     Float? // Crédito esperado
+  countedCredit      Float? // Crédito contado
+  
+  observations String? // Campo de observações
+  
   openedBy       String
   closedBy       String?
   openedAt       DateTime      @default(now())

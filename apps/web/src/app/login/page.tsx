@@ -26,7 +26,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      console.log('🔍 Tentando login com:', formData.email);
+      console.log('🌐 URL base da API:', api.defaults.baseURL);
+      console.log('📡 URL completa:', `${api.defaults.baseURL}/auth/login`);
+      
       const response = await api.post('/auth/login', formData);
+      console.log('✅ Resposta recebida:', response.data);
+      
       const { user, accessToken, refreshToken } = response.data;
 
       login(user, accessToken, refreshToken);
@@ -44,8 +50,12 @@ export default function LoginPage() {
         }
       }, 120);
     } catch (error: any) {
+      console.error('❌ Erro completo:', error);
+      console.error('📍 URL chamada:', error.config?.url);
+      console.error('🔗 Base URL:', error.config?.baseURL);
+      console.error('📊 Status:', error.response?.status);
+      console.error('💬 Mensagem:', error.response?.data);
       toast.error(error.response?.data?.message || 'Erro ao fazer login');
-      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }

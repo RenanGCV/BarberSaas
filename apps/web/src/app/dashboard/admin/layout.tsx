@@ -31,10 +31,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="bg-surface border-b border-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <h1 className="text-xl font-bold text-gradient">BarberSaas — Gestão</h1>
-          <span className="text-sm text-text-secondary">{user?.name}</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-text-secondary">{user?.name}</span>
+            <LogoutButton />
+          </div>
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
     </div>
+  );
+}
+
+function LogoutButton() {
+  const router = useRouter();
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
+  return (
+    <button onClick={handleLogout} className="btn btn-secondary text-sm">
+      Sair
+    </button>
   );
 }

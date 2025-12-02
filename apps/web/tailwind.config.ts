@@ -5,16 +5,20 @@ const config: Config = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/lib/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         background: '#0F0F0F',
         surface: '#1A1A1A',
         'surface-hover': '#242424',
-        primary: '#F5A027',
-        'primary-dark': '#D68B1F',
-        'primary-light': '#F7B654',
+        primary: {
+          DEFAULT: '#F5A027',
+          dark: '#D68B1F',
+          light: '#F7B654',
+        },
         secondary: '#2D2D2D',
         text: {
           primary: '#FFFFFF',

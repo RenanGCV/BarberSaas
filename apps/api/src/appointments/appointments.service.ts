@@ -5,11 +5,21 @@
     NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ChangeStatusDto, CreateAppointmentDto, UpdateAppointmentDto } from './dto';
+import {
+  ChangeStatusDto,
+  CheckAvailabilityDto,
+  CreateAppointmentDto,
+  QueryAppointmentDto,
+  UpdateAppointmentDto,
+} from './dto';
+import { AppointmentsGateway } from './appointments.gateway';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private appointmentsGateway: AppointmentsGateway,
+  ) {}
 
   async create(createAppointmentDto: CreateAppointmentDto, customerId: string, tenantId: string) {
     const { serviceId, barberId, scheduledAt, notes } = createAppointmentDto;
@@ -103,6 +113,9 @@ export class AppointmentsService {
       },
     });
 
+    // Notificar via WebSocket
+    this.appointmentsGateway.notifyAppointmentCreated(appointment);
+
     return appointment;
   }
 
@@ -138,6 +151,64 @@ export class AppointmentsService {
       },
       orderBy: { scheduledAt: 'desc' },
     });
+  }
+
+  async findAllWithFilters(queryDto: QueryAppointmentDto, tenantId: string) {
+    const { barberId, clientId, status, startDate, endDate, page = 1, limit = 20 } = queryDto;
+
+    const where: any = {
+      barber: { tenantId },
+    };
+
+    if (barberId) where.barberId = barberId;
+    if (clientId) where.customerId = clientId;
+    if (status) where.status = status;
+
+    if (startDate || endDate) {
+      where.scheduledAt = {};
+      if (startDate) where.scheduledAt.gte = new Date(startDate);
+      if (endDate) where.scheduledAt.lte = new Date(endDate);
+    }
+
+    const [appointments, total] = await Promise.all([
+      this.prisma.appointment.findMany({
+        where,
+        include: {
+          service: true,
+          barber: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+          customer: {
+            select: {
+              name: true,
+              phone: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { scheduledAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.appointment.count({ where }),
+    ]);
+
+    return {
+      data: appointments,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findUpcoming(tenantId: string, customerId?: string) {
@@ -256,6 +327,10 @@ export class AppointmentsService {
           },
         },
       },
+    }).then((updated) => {
+      // Notificar via WebSocket
+      this.appointmentsGateway.notifyAppointmentUpdated(updated);
+      return updated;
     });
   }
 
@@ -300,6 +375,10 @@ export class AppointmentsService {
           },
         },
       },
+    }).then((updated) => {
+      // Notificar via WebSocket
+      this.appointmentsGateway.notifyAppointmentStatusChanged(updated);
+      return updated;
     });
   }
 
@@ -317,6 +396,10 @@ export class AppointmentsService {
     return this.prisma.appointment.update({
       where: { id },
       data: { status: 'CANCELLED' },
+    }).then((cancelled) => {
+      // Notificar via WebSocket
+      this.appointmentsGateway.notifyAppointmentCancelled(cancelled);
+      return cancelled;
     });
   }
 
@@ -393,5 +476,279 @@ export class AppointmentsService {
         `Transição de ${currentStatus} para ${newStatus} não permitida`,
       );
     }
+  }
+
+  // Agenda do barbeiro em um dia específico
+  async getBarberSchedule(barberId: string, date: string, tenantId: string) {
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        barberId,
+        barber: { tenantId },
+        scheduledAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+      },
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+          },
+        },
+        customer: {
+          select: {
+            name: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    return appointments;
+  }
+
+  // Verificar horários disponíveis
+  async checkAvailability(
+    barberId: string,
+    checkAvailabilityDto: CheckAvailabilityDto,
+    tenantId: string,
+  ) {
+    const { date, serviceId } = checkAvailabilityDto;
+
+    // Buscar barbeiro e validações
+    const barber = await this.prisma.barber.findFirst({
+      where: { id: barberId, tenantId, isActive: true },
+      include: {
+        tenant: true,
+        services: {
+          where: { serviceId },
+          include: {
+            service: true,
+          },
+        },
+      },
+    });
+
+    if (!barber) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    if (barber.services.length === 0) {
+      throw new BadRequestException('Barbeiro não oferece este serviço');
+    }
+
+    const service = barber.services[0].service;
+    const tenant = barber.tenant;
+
+    // Gerar slots de horário
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Buscar agendamentos do dia
+    const existingAppointments = await this.prisma.appointment.findMany({
+      where: {
+        barberId,
+        scheduledAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+      },
+      include: {
+        service: {
+          select: {
+            duration: true,
+          },
+        },
+      },
+    });
+
+    // Criar slots disponíveis
+    const slots: Array<{ time: string; available: boolean }> = [];
+    const [openHour, openMinute] = tenant.openTime.split(':').map(Number);
+    const [closeHour, closeMinute] = tenant.closeTime.split(':').map(Number);
+
+    const slotDuration = 30; // 30 minutos por slot
+
+    for (let hour = openHour; hour < closeHour; hour++) {
+      for (let minute = 0; minute < 60; minute += slotDuration) {
+        if (hour === closeHour && minute >= closeMinute) break;
+
+        const slotTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const slotDate = new Date(date);
+        const [h, m] = slotTime.split(':').map(Number);
+        slotDate.setHours(h, m, 0, 0);
+
+        // Verificar se slot está no passado
+        if (slotDate < new Date()) {
+          continue;
+        }
+
+        // Verificar se há conflito
+        const hasConflict = existingAppointments.some((appointment) => {
+          const appointmentEnd = new Date(
+            appointment.scheduledAt.getTime() + appointment.service.duration * 60000,
+          );
+          const slotEnd = new Date(slotDate.getTime() + service.duration * 60000);
+
+          return (
+            (slotDate >= appointment.scheduledAt && slotDate < appointmentEnd) ||
+            (slotEnd > appointment.scheduledAt && slotEnd <= appointmentEnd) ||
+            (slotDate <= appointment.scheduledAt && slotEnd >= appointmentEnd)
+          );
+        });
+
+        slots.push({
+          time: slotTime,
+          available: !hasConflict,
+        });
+      }
+    }
+
+    return {
+      date,
+      barberId,
+      serviceId,
+      serviceDuration: service.duration,
+      slots,
+    };
+  }
+
+  // Estatísticas de agendamentos
+  async getStats(tenantId: string, startDate?: string, endDate?: string) {
+    const where: any = {
+      barber: { tenantId },
+    };
+
+    if (startDate || endDate) {
+      where.scheduledAt = {};
+      if (startDate) where.scheduledAt.gte = new Date(startDate);
+      if (endDate) where.scheduledAt.lte = new Date(endDate);
+    }
+
+    const [
+      total,
+      pending,
+      confirmed,
+      completed,
+      cancelled,
+      noShow,
+      totalRevenue,
+    ] = await Promise.all([
+      this.prisma.appointment.count({ where }),
+      this.prisma.appointment.count({ where: { ...where, status: 'PENDING' } }),
+      this.prisma.appointment.count({ where: { ...where, status: 'CONFIRMED' } }),
+      this.prisma.appointment.count({ where: { ...where, status: 'COMPLETED' } }),
+      this.prisma.appointment.count({ where: { ...where, status: 'CANCELLED' } }),
+      this.prisma.appointment.count({ where: { ...where, status: 'NO_SHOW' } }),
+      this.prisma.appointment.findMany({
+        where: { ...where, status: 'COMPLETED' },
+        include: { service: { select: { price: true } } },
+      }),
+    ]);
+
+    const revenue = totalRevenue.reduce((sum, apt) => sum + apt.service.price, 0);
+
+    const completionRate = total > 0 ? ((completed / total) * 100).toFixed(2) : '0';
+    const noShowRate = total > 0 ? ((noShow / total) * 100).toFixed(2) : '0';
+    const cancellationRate = total > 0 ? ((cancelled / total) * 100).toFixed(2) : '0';
+
+    return {
+      total,
+      byStatus: {
+        pending,
+        confirmed,
+        completed,
+        cancelled,
+        noShow,
+      },
+      rates: {
+        completion: `${completionRate}%`,
+        noShow: `${noShowRate}%`,
+        cancellation: `${cancellationRate}%`,
+      },
+      revenue,
+    };
+  }
+
+  // Calendário mensal
+  async getCalendar(tenantId: string, month: number, year: number) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        barber: { tenantId },
+        scheduledAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        service: {
+          select: {
+            name: true,
+            duration: true,
+          },
+        },
+        barber: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    // Agrupar por dia
+    const calendar: Record<string, any[]> = {};
+
+    appointments.forEach((appointment) => {
+      const day = appointment.scheduledAt.getDate();
+      const key = day.toString().padStart(2, '0');
+
+      if (!calendar[key]) {
+        calendar[key] = [];
+      }
+
+      calendar[key].push({
+        id: appointment.id,
+        time: appointment.scheduledAt.toTimeString().slice(0, 5),
+        customer: appointment.customer.name,
+        barber: appointment.barber.user.name,
+        service: appointment.service.name,
+        status: appointment.status,
+      });
+    });
+
+    return {
+      month,
+      year,
+      appointments: calendar,
+      total: appointments.length,
+    };
   }
 }

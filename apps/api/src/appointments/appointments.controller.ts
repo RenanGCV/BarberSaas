@@ -14,7 +14,13 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AppointmentsService } from './appointments.service';
-import { ChangeStatusDto, CreateAppointmentDto, UpdateAppointmentDto } from './dto';
+import {
+  ChangeStatusDto,
+  CheckAvailabilityDto,
+  CreateAppointmentDto,
+  QueryAppointmentDto,
+  UpdateAppointmentDto,
+} from './dto';
 
 @ApiTags('appointments')
 @ApiBearerAuth()
@@ -34,6 +40,12 @@ export class AppointmentsController {
   @ApiQuery({ name: 'customerId', required: false })
   findAll(@CurrentUser() user, @Query('customerId') customerId?: string) {
     return this.appointmentsService.findAll(user.tenantId, customerId);
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Buscar agendamentos com filtros avançados' })
+  findAllWithFilters(@Query() queryDto: QueryAppointmentDto, @CurrentUser() user) {
+    return this.appointmentsService.findAllWithFilters(queryDto, user.tenantId);
   }
 
   @Get('upcoming')
@@ -73,5 +85,54 @@ export class AppointmentsController {
   @ApiOperation({ summary: 'Cancelar agendamento' })
   cancel(@Param('id') id: string, @CurrentUser() user) {
     return this.appointmentsService.cancel(id, user.tenantId, user.id);
+  }
+
+  @Get('barber/:barberId/schedule')
+  @ApiOperation({ summary: 'Ver agenda de um barbeiro em data específica' })
+  @ApiQuery({ name: 'date', required: true, example: '2024-02-15' })
+  getBarberSchedule(
+    @Param('barberId') barberId: string,
+    @Query('date') date: string,
+    @CurrentUser() user,
+  ) {
+    return this.appointmentsService.getBarberSchedule(barberId, date, user.tenantId);
+  }
+
+  @Post('barber/:barberId/check-availability')
+  @ApiOperation({ summary: 'Verificar horários disponíveis de um barbeiro' })
+  checkAvailability(
+    @Param('barberId') barberId: string,
+    @Body() checkAvailabilityDto: CheckAvailabilityDto,
+    @CurrentUser() user,
+  ) {
+    return this.appointmentsService.checkAvailability(
+      barberId,
+      checkAvailabilityDto,
+      user.tenantId,
+    );
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Estatísticas de agendamentos' })
+  @ApiQuery({ name: 'startDate', required: false, example: '2024-01-01' })
+  @ApiQuery({ name: 'endDate', required: false, example: '2024-12-31' })
+  getStats(
+    @CurrentUser() user,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.appointmentsService.getStats(user.tenantId, startDate, endDate);
+  }
+
+  @Get('calendar')
+  @ApiOperation({ summary: 'Visualização de calendário mensal' })
+  @ApiQuery({ name: 'month', required: true, example: 2 })
+  @ApiQuery({ name: 'year', required: true, example: 2024 })
+  getCalendar(
+    @CurrentUser() user,
+    @Query('month') month: string,
+    @Query('year') year: string,
+  ) {
+    return this.appointmentsService.getCalendar(user.tenantId, parseInt(month), parseInt(year));
   }
 }

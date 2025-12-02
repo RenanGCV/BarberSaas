@@ -10,8 +10,10 @@ async function bootstrap() {
   // Security
   app.use(helmet());
   app.enableCors({
-    origin: [process.env.WEB_URL, process.env.MOBILE_URL],
+    origin: ['http://localhost:3000', 'http://localhost:3001', process.env.WEB_URL, process.env.MOBILE_URL].filter(Boolean),
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Validation

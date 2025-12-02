@@ -180,7 +180,24 @@ async function main() {
     customers.push(customer);
   }
 
+  // Criar usuários sem role definido (potenciais colaboradores)
+  const potentialBarbers = [];
+  for (let i = 1; i <= 5; i++) {
+    const user = await prisma.user.create({
+      data: {
+        email: `funcionario${i}@barbearia.com`,
+        password: hashedPassword,
+        name: `Funcionário Disponível ${i}`,
+        phone: `(11) 98${800 + i * 100}-${5000 + i * 10}`,
+        role: UserRole.CUSTOMER, // Começa como CUSTOMER, será promovido a BARBER quando cadastrado
+        tenantId: tenant1.id,
+      },
+    });
+    potentialBarbers.push(user);
+  }
+
   console.log(`👥 ${customers.length} clientes criados`);
+  console.log(`👔 ${potentialBarbers.length} usuários disponíveis para se tornarem colaboradores`);
 
   // Criar agendamentos
   const today = new Date();
@@ -401,7 +418,8 @@ async function main() {
   console.log('\n📊 Resumo:');
   console.log(`- 2 Barbearias`);
   console.log(`- ${customers.length} Clientes`);
-  console.log(`- 3 Barbeiros`);
+  console.log(`- 2 Barbeiros ativos`);
+  console.log(`- 5 Usuários disponíveis para se tornarem colaboradores`);
   console.log(`- 6 Serviços`);
   console.log(`- ${appointments.length} Agendamentos`);
   console.log(`- 1 Caixa aberto`);
@@ -411,6 +429,7 @@ async function main() {
   console.log('Barbeiro 1: joao@barbearia.com / 123456');
   console.log('Barbeiro 2: pedro@barbearia.com / 123456');
   console.log('Cliente: cliente1@email.com / 123456');
+  console.log('Potencial Colaborador: funcionario1@barbearia.com / 123456');
 }
 
 main()

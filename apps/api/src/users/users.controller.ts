@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateUserDto } from './dto';
 import { UsersService } from './users.service';
 
@@ -13,7 +14,10 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todos os usuários' })
-  findAll() {
+  findAll(@Query('availableForBarber') availableForBarber?: string, @CurrentUser() user?: any) {
+    if (availableForBarber === 'true') {
+      return this.usersService.findAvailableForBarber(user?.tenantId);
+    }
     return this.usersService.findAll();
   }
 
