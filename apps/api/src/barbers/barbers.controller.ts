@@ -31,7 +31,22 @@ export class BarbersController {
   @Get()
   @ApiOperation({ summary: 'Listar todos os barbeiros' })
   findAll(@CurrentUser() user) {
-    return this.barbersService.findAll(user.tenantId);
+    const tenantId = user?.tenantId || null;
+    if (!tenantId) {
+      // Retornar todos os barbeiros ativos se não houver tenantId
+      return this.barbersService.findAllPublic();
+    }
+    return this.barbersService.findAll(tenantId);
+  }
+
+  @Get('me/appointments')
+  @ApiOperation({ summary: 'Buscar agendamentos do barbeiro autenticado' })
+  getMyAppointments(
+    @CurrentUser() user,
+    @Query('status') status?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.barbersService.getMyAppointments(user.id, user.tenantId, { status, date });
   }
 
   @Get(':id')
@@ -50,14 +65,15 @@ export class BarbersController {
     return this.barbersService.checkAvailability(id, user.tenantId, availabilityDto);
   }
 
-  @Get(':id/schedule')
+  @Get(':id/schedule/:date')
   @ApiOperation({ summary: 'Obter agenda do barbeiro' })
   getSchedule(
     @Param('id') id: string,
-    @Query('date') date: string,
+    @Param('date') date: string,
     @CurrentUser() user,
   ) {
-    return this.barbersService.getSchedule(id, user.tenantId, date);
+    const tenantId = user?.tenantId || null;
+    return this.barbersService.getSchedule(id, tenantId, date);
   }
 
   @Put(':id')

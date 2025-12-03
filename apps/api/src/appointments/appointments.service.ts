@@ -5,14 +5,14 @@
     NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  ChangeStatusDto,
-  CheckAvailabilityDto,
-  CreateAppointmentDto,
-  QueryAppointmentDto,
-  UpdateAppointmentDto,
-} from './dto';
 import { AppointmentsGateway } from './appointments.gateway';
+import {
+    ChangeStatusDto,
+    CheckAvailabilityDto,
+    CreateAppointmentDto,
+    QueryAppointmentDto,
+    UpdateAppointmentDto,
+} from './dto';
 
 @Injectable()
 export class AppointmentsService {
@@ -21,7 +21,7 @@ export class AppointmentsService {
     private appointmentsGateway: AppointmentsGateway,
   ) {}
 
-  async create(createAppointmentDto: CreateAppointmentDto, customerId: string, tenantId: string) {
+  async create(createAppointmentDto: CreateAppointmentDto, customerId: string | null, tenantId: string | null) {
     const { serviceId, barberId, scheduledAt, notes } = createAppointmentDto;
 
     // Converter data
@@ -29,23 +29,15 @@ export class AppointmentsService {
 
     // Validar data não está no passado
     if (appointmentDate < new Date()) {
-      throw new BadRequestException('Não é possível agendar no passado');
+      throw new BadRequestException(
+        'Não é possível criar agendamento com data/hora no passado. Por favor, escolha um horário futuro.'
+      );
     }
 
-    // Verificar serviço existe e pertence ao tenant
-    const service = await this.prisma.service.findFirst({
-      where: { id: serviceId, tenantId, isActive: true },
-    });
-
-    if (!service) {
-      throw new NotFoundException('Serviço não encontrado');
-    }
-
-    // Verificar barbeiro existe, pertence ao tenant e oferece o serviço
+    // Buscar barbeiro primeiro para obter tenantId se necessário
     const barber = await this.prisma.barber.findFirst({
       where: {
         id: barberId,
-        tenantId,
         isActive: true,
       },
       include: {
@@ -57,7 +49,23 @@ export class AppointmentsService {
     });
 
     if (!barber) {
-      throw new NotFoundException('Barbeiro não encontrado');
+      throw new NotFoundException(
+        `Barbeiro não encontrado ou inativo. Verifique se o ID está correto: ${barberId}`
+      );
+    }
+
+    // Usar tenantId do barbeiro se não foi fornecido
+    const effectiveTenantId = tenantId || barber.tenantId;
+
+    // Verificar serviço existe e pertence ao tenant
+    const service = await this.prisma.service.findFirst({
+      where: { id: serviceId, tenantId: effectiveTenantId, isActive: true },
+    });
+
+    if (!service) {
+      throw new NotFoundException(
+        `Serviço não encontrado ou inativo. Verifique se o serviço ${serviceId} existe e está ativo.`
+      );
     }
 
     if (barber.services.length === 0) {
@@ -84,7 +92,7 @@ export class AppointmentsService {
     // Criar agendamento
     const appointment = await this.prisma.appointment.create({
       data: {
-        tenantId,
+        tenantId: effectiveTenantId,
         serviceId,
         barberId,
         customerId,
@@ -104,12 +112,12 @@ export class AppointmentsService {
             },
           },
         },
-        customer: {
+        customer: customerId ? {
           select: {
             name: true,
             phone: true,
           },
-        },
+        } : false,
       },
     });
 
@@ -382,8 +390,17 @@ export class AppointmentsService {
     });
   }
 
-  async cancel(id: string, tenantId: string, userId: string) {
+  async cancel(id: string, tenantId: string, userId: string, userRole?: string) {
     const appointment = await this.findOne(id, tenantId);
+
+    // Validar ownership: apenas o cliente dono, barbeiro responsável, admin ou owner podem cancelar
+    const isCustomer = appointment.customerId === userId;
+    const isBarber = appointment.barberId === userId;
+    const isAdmin = userRole && ['ADMIN', 'OWNER'].includes(userRole);
+    
+    if (!isCustomer && !isBarber && !isAdmin) {
+      throw new BadRequestException('Você não tem permissão para cancelar este agendamento');
+    }
 
     if (appointment.status === 'COMPLETED') {
       throw new BadRequestException('Não é possível cancelar agendamento já concluído');

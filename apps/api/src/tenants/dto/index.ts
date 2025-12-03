@@ -1,35 +1,42 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 export class CreateTenantDto {
   @ApiProperty({ example: 'Barbearia Premium' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'O nome da barbearia deve ser um texto válido' })
+  @IsNotEmpty({ message: 'O nome da barbearia é obrigatório' })
+  @MaxLength(100, { message: 'O nome deve ter no máximo 100 caracteres' })
+  @Transform(({ value }) => value?.trim())
   name: string;
 
   @ApiProperty({ example: '(11) 98765-4321' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'O telefone deve ser um texto válido' })
+  @IsNotEmpty({ message: 'O telefone é obrigatório' })
+  @Matches(/^\(?\d{2}\)?\s?9?\d{4}-?\d{4}$/, {
+    message: 'Telefone inválido. Use o formato: (11) 98765-4321 ou 11987654321'
+  })
   phone: string;
 
   @ApiProperty({ example: 'Rua das Flores, 123' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'O endereço deve ser um texto válido' })
+  @IsNotEmpty({ message: 'O endereço é obrigatório' })
   address: string;
 
   @ApiProperty({ example: 'São Paulo' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'A cidade deve ser um texto válido' })
+  @IsNotEmpty({ message: 'A cidade é obrigatória' })
   city: string;
 
   @ApiProperty({ example: 'SP' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'O estado deve ser um texto válido' })
+  @IsNotEmpty({ message: 'O estado é obrigatório' })
   state: string;
 
   @ApiProperty({ example: '01234-567' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'O CEP deve ser um texto válido' })
+  @IsNotEmpty({ message: 'O CEP é obrigatório' })
+  @Matches(/^\d{5}-?\d{3}$/, { message: 'CEP inválido. Use o formato: 01234-567' })
   zipCode: string;
 
   @ApiProperty({ example: -23.5505, required: false })

@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 
 export default function AdminDashboardPage() {
-  const { data: data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
       const [barbers, services, incomeSummary, expenseSummary] = await Promise.all([
@@ -22,7 +22,16 @@ export default function AdminDashboardPage() {
         expense: expenseSummary.data?.total || 0,
       };
     },
+    refetchInterval: 30000, // Atualiza a cada 30s
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">

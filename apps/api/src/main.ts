@@ -9,8 +9,23 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
+  
+  // CORS Configuration
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.WEB_URL,
+    process.env.MOBILE_URL,
+  ].filter(Boolean);
+
+  // Em produção, não permitir localhost
+  const isProduction = process.env.NODE_ENV === 'production';
+  const corsOrigins = isProduction 
+    ? allowedOrigins.filter(origin => !origin.includes('localhost'))
+    : allowedOrigins;
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', process.env.WEB_URL, process.env.MOBILE_URL].filter(Boolean),
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

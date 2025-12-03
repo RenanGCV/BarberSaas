@@ -1,9 +1,9 @@
 'use client';
 
 import api from '@/lib/api';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 type TimeSlot = {
@@ -18,19 +18,36 @@ export default function NewAppointmentPage() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
 
-  const { data: options } = useQuery({
+  const { data: options, isLoading, error } = useQuery({
     queryKey: ['new-appointment-options'],
     queryFn: async () => {
       const [barbers, services] = await Promise.all([
         api.get('/barbers'), 
         api.get('/services')
       ]);
+      console.log('Barbers:', barbers.data);
+      console.log('Services:', services.data);
       return { 
         barbers: barbers.data || [], 
         services: services.data || [] 
       };
     },
   });
+
+  // Filtrar serviços disponíveis para o barbeiro selecionado
+  const availableServices = useMemo(() => {
+    if (!selectedBarber || !options?.services) return options?.services || [];
+    
+    const barber = options.barbers.find((b: any) => b.id === selectedBarber);
+    if (!barber?.services || barber.services.length === 0) {
+      // Se o barbeiro não tem serviços específicos vinculados, mostrar todos
+      return options.services;
+    }
+    
+    // Mostrar apenas serviços vinculados ao barbeiro
+    const barberServiceIds = barber.services.map((bs: any) => bs.serviceId);
+    return options.services.filter((s: any) => barberServiceIds.includes(s.id));
+  }, [selectedBarber, options]);
 
   // Buscar agendamentos do barbeiro quando selecionado
   const { data: barberSchedule } = useQuery({
@@ -67,16 +84,26 @@ export default function NewAppointmentPage() {
       new Date(a.scheduledAt).toTimeString().slice(0, 5)
     );
 
+    const now = new Date();
+    const currentHour = now.getHours();
+    const isToday = selectedDate === now.toISOString().split('T')[0];
+
     // Horários fixos de 1 em 1 hora
     for (let hour = 9; hour <= 18; hour++) {
       const time = `${hour.toString().padStart(2, '0')}:00`;
+      
+      // Se for hoje, não mostrar horários que já passaram
+      if (isToday && hour <= currentHour) {
+        continue;
+      }
+      
       slots.push({
         time,
         available: !bookedTimes.includes(time),
       });
     }
     return slots;
-  }, [barberSchedule]);
+  }, [barberSchedule, selectedDate]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -110,6 +137,8 @@ export default function NewAppointmentPage() {
       {/* Etapa 1: Selecionar Profissional */}
       <div className="card">
         <h2 className="text-lg font-semibold mb-4">1. Escolha o profissional</h2>
+        {isLoading && <p className="text-text-secondary">Carregando profissionais...</p>}
+        {error && <p className="text-error">Erro ao carregar profissionais. Verifique sua conexão.</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(options?.barbers || []).map((barber: any) => (
             <button
@@ -160,7 +189,7 @@ export default function NewAppointmentPage() {
         <div className="card animate-slide-up">
           <h2 className="text-lg font-semibold mb-4">2. Escolha o serviço</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(options?.services || []).map((service: any) => (
+            {(availableServices || []).map((service: any) => (
               <button
                 key={service.id}
                 onClick={() => setSelectedService(service.id)}
@@ -184,6 +213,11 @@ export default function NewAppointmentPage() {
               </button>
             ))}
           </div>
+          {(!availableServices || availableServices.length === 0) && (
+            <p className="text-text-secondary text-center py-4">
+              Este profissional não possui serviços cadastrados.
+            </p>
+          )}
         </div>
       )}
 

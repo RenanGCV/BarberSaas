@@ -1,7 +1,8 @@
 'use client';
 
+import TimeClockPicker from '@/components/TimeClockPicker';
 import api from '@/lib/api';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -9,46 +10,37 @@ import { toast } from 'sonner';
 export default function NewStaffPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    userId: '',
-    commission: 0,
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    commission: 50,
     specialties: '' as any,
-    workingHours: '',
   });
 
-  const [createUserOpen, setCreateUserOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', phone: '', password: '' });
-
-  // Buscar apenas usuários disponíveis (que não são barbeiros ainda)
-  const { data: users, refetch: refetchUsers } = useQuery({
-    queryKey: ['users', 'availableForBarber'],
-    queryFn: async () => {
-      const res = await api.get('/users?availableForBarber=true');
-      return res.data || [];
-    },
-  });
-
-  const createUserMutation = useMutation({
-    mutationFn: async (payload: typeof newUser) => {
-      const res = await api.post('/auth/register', payload);
-      return res.data?.user;
-    },
-    onSuccess: (user) => {
-      toast.success('Usuário criado com sucesso!');
-      // Atualizar lista de usuários disponíveis
-      refetchUsers();
-      // Selecionar o usuário recém-criado
-      setForm((f) => ({ ...f, userId: user.id }));
-      // Fechar formulário de criação
-      setCreateUserOpen(false);
-      setNewUser({ name: '', email: '', phone: '', password: '' });
-    },
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'Erro ao criar usuário'),
-  });
+  const [startTime, setStartTime] = useState({ hours: 9, minutes: 0 });
+  const [endTime, setEndTime] = useState({ hours: 18, minutes: 0 });
+  const [workDays, setWorkDays] = useState<string[]>(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta']);
 
   const mutation = useMutation({
     mutationFn: async () => {
+      // 1. Criar o usuário
+      const userRes = await api.post('/auth/register', {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      });
+
+      const userId = userRes.data?.user?.id;
+
+      if (!userId) {
+        throw new Error('Erro ao criar usuário');
+      }
+
+      // 2. Criar o barbeiro vinculado ao usuário
       await api.post('/barbers', {
-        userId: form.userId,
+        userId,
         commission: Number(form.commission) || 0,
         specialties: (form.specialties || '')
           .toString()
@@ -61,102 +53,59 @@ export default function NewStaffPage() {
       toast.success('Colaborador criado com sucesso!');
       router.replace('/dashboard/admin/staff');
     },
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'Erro ao salvar'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Erro ao criar colaborador'),
   });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Novo colaborador</h1>
+        <h1 className="text-2xl font-bold">Novo Colaborador</h1>
         <a href="/dashboard/admin/staff" className="btn btn-secondary">Voltar</a>
       </div>
       <div className="card space-y-4">
         <div>
-          <label className="label">Usuário</label>
-          <select 
-            className="input" 
-            value={form.userId} 
-            onChange={(e) => setForm((f) => ({ ...f, userId: e.target.value }))}
-            disabled={createUserOpen}
-          >
-            <option value="">Selecione um usuário existente</option>
-            {(users || []).map((u: any) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.email}) {u.role !== 'CUSTOMER' && `- ${u.role}`}
-              </option>
-            ))}
-          </select>
-          <p className="text-sm text-gray-400 mt-1">
-            Apenas usuários que ainda não são colaboradores aparecem nesta lista
-          </p>
-          <div className="mt-3">
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={() => {
-                setCreateUserOpen((v) => !v);
-                if (!createUserOpen) {
-                  setForm((f) => ({ ...f, userId: '' }));
-                }
-              }}
-            >
-              {createUserOpen ? '✕ Cancelar novo usuário' : '+ Criar novo usuário'}
-            </button>
+          <h3 className="font-semibold text-primary mb-4">Dados do Colaborador</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Nome completo *</label>
+              <input 
+                className="input" 
+                value={form.name} 
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ex: João Silva"
+              />
+            </div>
+            <div>
+              <label className="label">Telefone *</label>
+              <input 
+                className="input" 
+                value={form.phone} 
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="(11) 98765-4321"
+              />
+            </div>
+            <div>
+              <label className="label">Email *</label>
+              <input 
+                className="input" 
+                type="email" 
+                value={form.email} 
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="joao@exemplo.com"
+              />
+            </div>
+            <div>
+              <label className="label">Senha *</label>
+              <input 
+                className="input" 
+                type="password" 
+                value={form.password} 
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
           </div>
         </div>
-
-        {createUserOpen && (
-          <div className="p-4 bg-secondary rounded-lg space-y-3 animate-slide-up border-2 border-primary/20">
-            <h3 className="font-semibold text-primary">Criar novo usuário</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Nome completo *</label>
-                <input 
-                  className="input" 
-                  value={newUser.name} 
-                  onChange={(e) => setNewUser((u) => ({ ...u, name: e.target.value }))}
-                  placeholder="Ex: João Silva"
-                />
-              </div>
-              <div>
-                <label className="label">Telefone</label>
-                <input 
-                  className="input" 
-                  value={newUser.phone} 
-                  onChange={(e) => setNewUser((u) => ({ ...u, phone: e.target.value }))}
-                  placeholder="(11) 98765-4321"
-                />
-              </div>
-              <div>
-                <label className="label">Email *</label>
-                <input 
-                  className="input" 
-                  type="email" 
-                  value={newUser.email} 
-                  onChange={(e) => setNewUser((u) => ({ ...u, email: e.target.value }))}
-                  placeholder="joao@exemplo.com"
-                />
-              </div>
-              <div>
-                <label className="label">Senha *</label>
-                <input 
-                  className="input" 
-                  type="password" 
-                  value={newUser.password} 
-                  onChange={(e) => setNewUser((u) => ({ ...u, password: e.target.value }))}
-                  placeholder="Mínimo 6 caracteres"
-                />
-              </div>
-            </div>
-            <button 
-              className="btn btn-primary w-full" 
-              onClick={() => createUserMutation.mutate(newUser)} 
-              disabled={!newUser.name || !newUser.email || !newUser.password || createUserMutation.isPending}
-            >
-              {createUserMutation.isPending ? '⏳ Criando...' : '✓ Criar e usar este usuário'}
-            </button>
-          </div>
-        )}
 
         <div>
           <label className="label">Comissão (%)</label>
@@ -221,41 +170,60 @@ export default function NewStaffPage() {
         </div>
         <div>
           <label className="label">Horário de trabalho</label>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            {[
-              { label: 'Seg-Sex 9h-18h', value: 'Segunda a Sexta: 09:00-18:00' },
-              { label: 'Seg-Sáb 9h-18h', value: 'Segunda a Sábado: 09:00-18:00' },
-              { label: 'Seg-Sex 10h-20h', value: 'Segunda a Sexta: 10:00-20:00' },
-              { label: 'Seg-Sáb 10h-20h', value: 'Segunda a Sábado: 10:00-20:00' },
-            ].map(option => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, workingHours: option.value }))}
-                className={`p-3 rounded-lg border-2 transition-all text-sm ${
-                  form.workingHours === option.value
-                    ? 'border-primary bg-primary/10 font-semibold'
-                    : 'border-secondary hover:border-primary/50'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-text-secondary mb-2">Dias de trabalho:</p>
+              <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
+                {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => {
+                  const isSelected = workDays.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setWorkDays(workDays.filter(d => d !== day));
+                        } else {
+                          setWorkDays([...workDays, day]);
+                        }
+                      }}
+                      className={`p-2 rounded-lg border-2 transition-all text-xs font-medium ${
+                        isSelected
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-secondary hover:border-primary/50 text-text-secondary'
+                      }`}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-text-secondary mb-3">Horário de início:</p>
+                <TimeClockPicker stepMinutes={15} value={startTime} onChange={setStartTime} size={240} />
+              </div>
+              <div>
+                <p className="text-sm text-text-secondary mb-3">Horário de término:</p>
+                <TimeClockPicker stepMinutes={15} value={endTime} onChange={setEndTime} size={240} />
+              </div>
+            </div>
+
+            <div className="p-3 bg-surface rounded-lg border border-secondary">
+              <p className="text-sm text-text-primary">
+                <strong>Resumo:</strong> {workDays.length > 0 ? workDays.join(', ') : 'Nenhum dia selecionado'} • {String(startTime.hours).padStart(2, '0')}:{String(startTime.minutes).padStart(2, '0')} às {String(endTime.hours).padStart(2, '0')}:{String(endTime.minutes).padStart(2, '0')}
+              </p>
+            </div>
           </div>
-          <input className="input"
-                 placeholder="Ou insira um horário personalizado"
-                 value={form.workingHours}
-                 onChange={(e) => setForm((f) => ({ ...f, workingHours: e.target.value }))} />
-          <p className="text-sm text-gray-400 mt-1">
-            Informação ilustrativa (não afeta o sistema de agendamentos)
-          </p>
         </div>
         <button 
           className="btn btn-primary w-full" 
           onClick={() => mutation.mutate()} 
-          disabled={!form.userId || mutation.isPending}
+          disabled={!form.name || !form.email || !form.phone || !form.password || mutation.isPending}
         >
-          {mutation.isPending ? '⏳ Salvando...' : '✓ Salvar colaborador'}
+          {mutation.isPending ? '⏳ Criando colaborador...' : '✓ Criar Colaborador'}
         </button>
       </div>
     </div>

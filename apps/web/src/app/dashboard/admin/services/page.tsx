@@ -1,10 +1,10 @@
 'use client';
 
 import api from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { formatCurrency } from '@/lib/utils';
 
 export default function ServicesListPage() {
   const qc = useQueryClient();

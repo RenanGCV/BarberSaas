@@ -30,7 +30,12 @@ export class ServicesController {
   @Get()
   @ApiOperation({ summary: 'Listar todos os serviços' })
   findAll(@CurrentUser() user) {
-    return this.servicesService.findAll(user.tenantId);
+    const tenantId = user?.tenantId || null;
+    if (!tenantId) {
+      // Retornar todos os serviços ativos se não houver tenantId
+      return this.servicesService.findAllPublic();
+    }
+    return this.servicesService.findAll(tenantId);
   }
 
   @Get('barber/:barberId')

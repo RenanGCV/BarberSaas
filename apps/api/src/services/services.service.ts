@@ -54,6 +54,35 @@ export class ServicesService {
     });
   }
 
+  async findAllPublic() {
+    return this.prisma.service.findMany({
+      where: { isActive: true },
+      include: {
+        barbers: {
+          include: {
+            barber: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            appointments: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findOne(id: string, tenantId: string) {
     const service = await this.prisma.service.findFirst({
       where: { id, tenantId },

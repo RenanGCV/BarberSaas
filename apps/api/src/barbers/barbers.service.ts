@@ -13,7 +13,9 @@ export class BarbersService {
     });
 
     if (!user) {
-      throw new NotFoundException('Usuário não encontrado');
+      throw new NotFoundException(
+        `Usuário com ID ${createBarberDto.userId} não encontrado. Certifique-se de que o usuário foi criado antes de vinculá-lo como barbeiro.`
+      );
     }
 
     // Garantir vínculo ao tenant atual caso ainda não tenha
@@ -25,7 +27,9 @@ export class BarbersService {
     }
 
     if (user.tenantId !== tenantId) {
-      throw new BadRequestException('Usuário pertence a outro estabelecimento');
+      throw new BadRequestException(
+        `Este usuário já pertence a outro estabelecimento. Não é possível vinculá-lo como barbeiro aqui.`
+      );
     }
 
     // Verificar se já não é barbeiro
@@ -34,7 +38,9 @@ export class BarbersService {
     });
 
     if (existingBarber) {
-      throw new BadRequestException('Este usuário já é um barbeiro');
+      throw new BadRequestException(
+        `Este usuário já está cadastrado como barbeiro. Use a função de atualização para modificar seus dados.`
+      );
     }
 
     // Criar barbeiro e atualizar role do usuário
@@ -81,6 +87,92 @@ export class BarbersService {
             email: true,
             phone: true,
             avatar: true,
+          },
+        },
+        services: {
+          include: {
+            service: true,
+          },
+        },
+        _count: {
+          select: {
+            appointments: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getMyAppointments(
+    userId: string,
+    tenantId: string,
+    filters?: { status?: string; date?: string },
+  ) {
+    // Buscar barbeiro associado ao userId
+    const barber = await this.prisma.barber.findFirst({
+      where: { userId, tenantId },
+    });
+
+    if (!barber) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    const where: any = {
+      barberId: barber.id,
+      tenantId,
+    };
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+
+    if (filters?.date) {
+      const date = new Date(filters.date);
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      where.scheduledAt = {
+        gte: date,
+        lt: nextDay,
+      };
+    }
+
+    return this.prisma.appointment.findMany({
+      where,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            avatar: true,
+          },
+        },
+        service: true,
+      },
+      orderBy: {
+        scheduledAt: 'asc',
+      },
+    });
+  }
+
+  async findAllPublic() {
+    return this.prisma.barber.findMany({
+      where: { isActive: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatar: true,
+          },
+        },
+        services: {
+          include: {
+            service: true,
           },
         },
         _count: {
@@ -167,8 +259,18 @@ export class BarbersService {
     };
   }
 
-  async getSchedule(barberId: string, tenantId: string, date: string) {
-    const barber = await this.findOne(barberId, tenantId);
+  async getSchedule(barberId: string, tenantId: string | null, date: string) {
+    // Permitir consulta pública para clientes
+    const barber = tenantId 
+      ? await this.findOne(barberId, tenantId)
+      : await this.prisma.barber.findUnique({
+          where: { id: barberId, isActive: true },
+          include: { user: true },
+        });
+
+    if (!barber) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
 
     const startDate = new Date(`${date}T00:00:00`);
     const endDate = new Date(`${date}T23:59:59`);

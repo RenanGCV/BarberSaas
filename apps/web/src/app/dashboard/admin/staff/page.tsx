@@ -8,12 +8,14 @@ import { toast } from 'sonner';
 export default function StaffListPage() {
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['barbers'],
     queryFn: async () => {
       const res = await api.get('/barbers');
       return res.data || [];
     },
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const removeMutation = useMutation({
@@ -31,7 +33,10 @@ export default function StaffListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Colaboradores</h1>
-        <Link href="/dashboard/admin/staff/new" className="btn btn-primary">Novo colaborador</Link>
+        <div className="flex gap-2">
+          <button onClick={() => refetch()} className="btn btn-secondary">Atualizar</button>
+          <Link href="/dashboard/admin/staff/new" className="btn btn-primary">Novo colaborador</Link>
+        </div>
       </div>
 
       <div className="card">

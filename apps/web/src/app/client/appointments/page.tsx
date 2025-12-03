@@ -2,11 +2,11 @@
 
 import api from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function ClientAppointmentsPage() {
   const qc = useQueryClient();
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['client-appointments'],
     queryFn: async () => {
       const res = await api.get('/appointments');
@@ -21,6 +21,14 @@ export default function ClientAppointmentsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['client-appointments'] }),
   });
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Meus agendamentos</h1>
@@ -29,7 +37,9 @@ export default function ClientAppointmentsPage() {
           <div key={a.id} className="flex items-center justify-between p-4 bg-secondary rounded-lg">
             <div>
               <p className="font-medium">{a?.service?.name || 'Serviço'}</p>
-              <p className="text-sm text-text-secondary">{a?.barber?.name || 'Barbeiro'} • {formatDateTime(a?.scheduledAt)}</p>
+              <p className="text-sm text-text-secondary">
+                {a?.barber?.user?.name || a?.barber?.name || 'Barbeiro'} • {formatDateTime(a?.scheduledAt)}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <a href={`/client/appointments/${a.id}/reschedule`} className="btn btn-secondary">Remarcar</a>

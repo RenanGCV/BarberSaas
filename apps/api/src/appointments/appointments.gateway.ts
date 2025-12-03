@@ -1,14 +1,14 @@
+import { Logger } from '@nestjs/common';
 import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
+    ConnectedSocket,
+    MessageBody,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    SubscribeMessage,
+    WebSocketGateway,
+    WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -32,7 +32,18 @@ export class AppointmentsGateway implements OnGatewayConnection, OnGatewayDiscon
 
   // Cliente se junta à sala do tenant
   @SubscribeMessage('join-tenant')
-  handleJoinTenant(@MessageBody() tenantId: string, @ConnectedSocket() client: Socket) {
+  handleJoinTenant(@MessageBody() data: { tenantId: string; userId?: string }, @ConnectedSocket() client: Socket) {
+    const { tenantId, userId } = data;
+    
+    // TODO: Validar se userId tem permissão para acessar este tenantId
+    // Por enquanto, aceitamos apenas se userId for fornecido no handshake
+    const userTenantId = (client.handshake as any).auth?.tenantId;
+    
+    if (userTenantId && userTenantId !== tenantId) {
+      this.logger.warn(`Cliente ${client.id} tentou entrar em tenant ${tenantId} mas pertence a ${userTenantId}`);
+      return { event: 'error', data: { message: 'Acesso negado ao tenant solicitado' } };
+    }
+    
     client.join(`tenant:${tenantId}`);
     this.logger.log(`Cliente ${client.id} entrou na sala tenant:${tenantId}`);
     return { event: 'joined', data: { tenantId } };
@@ -40,7 +51,17 @@ export class AppointmentsGateway implements OnGatewayConnection, OnGatewayDiscon
 
   // Cliente se junta à sala do barbeiro
   @SubscribeMessage('join-barber')
-  handleJoinBarber(@MessageBody() barberId: string, @ConnectedSocket() client: Socket) {
+  handleJoinBarber(@MessageBody() data: { barberId: string; userId?: string }, @ConnectedSocket() client: Socket) {
+    const { barberId, userId } = data;
+    
+    // TODO: Validar se userId é o próprio barbeiro ou admin do tenant
+    const userTenantId = (client.handshake as any).auth?.tenantId;
+    
+    if (!userTenantId) {
+      this.logger.warn(`Cliente ${client.id} tentou entrar em sala do barbeiro sem autenticação`);
+      return { event: 'error', data: { message: 'Autenticação necessária' } };
+    }
+    
     client.join(`barber:${barberId}`);
     this.logger.log(`Cliente ${client.id} entrou na sala barber:${barberId}`);
     return { event: 'joined', data: { barberId } };

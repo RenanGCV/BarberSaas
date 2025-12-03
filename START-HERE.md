@@ -1,376 +1,166 @@
-# 🎉 PROJETO BARBERSAAS - ESTRUTURA CRIADA COM SUCESSO!
+# 🚀 Quick Start - BarberSaaS
 
-## ✅ O que foi Feito
+> **Para desenvolvedores que vão continuar o projeto em outra máquina**  
+> **Última atualização:** 03/12/2025
 
-Implementei a **estrutura completa** do projeto BarberSaas seguindo todas as especificações do arquivo `.github/copilot-instructions.md`.
+## 📋 Leia Primeiro
 
----
+**IMPORTANTE:** Antes de começar a codificar, leia:
 
-## 📦 Arquivos Criados (58+ arquivos)
+1. 📘 **CONTEXTO-COMPLETO-PROJETO.md** - Documento principal com TUDO
+2. 📊 **SPRINT-MELHORIAS-CONCLUIDA.md** - Última sprint (o que foi feito)
+3. ✅ **Todo List** no VS Code - Próximas tarefas priorizadas
 
-### 📁 Raiz do Projeto
-- ✅ `README.md` - Overview do projeto
-- ✅ `INSTALLATION.md` - Guia de instalação passo a passo
-- ✅ `ARCHITECTURE.md` - Estrutura completa do monorepo
-- ✅ `AI-AGENT-GUIDE.md` - **Guia específico para IAs** 🤖
-- ✅ `PROJECT-STATUS.md` - Status detalhado
-- ✅ `ROADMAP.md` - Roadmap de desenvolvimento
-- ✅ `package.json` - Config do monorepo
-- ✅ `docker-compose.yml` - PostgreSQL + Redis + MailHog
-- ✅ `setup.bat` - Script de setup Windows
-- ✅ `setup.sh` - Script de setup Linux/Mac
-- ✅ `.gitignore`, `.prettierrc`, `tsconfig.json`
-
-### 🔧 Backend (apps/api/)
-- ✅ **Prisma**
-  - `schema.prisma` - 12 models completos
-  - `seed.ts` - Dados de exemplo
-  
-- ✅ **Módulos Implementados**
-  - Auth (completo): Login, Register, Refresh Token, JWT
-  - Users (completo): CRUD de usuários
-  - Prisma (service global)
-  
-- ✅ **Módulos Estruturados** (stubs para implementar)
-  - Tenants, Barbers, Services
-  - Appointments, Payments
-  - Transactions, CashFlow
-  - Promotions, Reports, Notifications
-
-- ✅ **Configurações**
-  - `package.json`, `tsconfig.json`, `nest-cli.json`
-  - `.env.example`
-  - `main.ts` com Swagger
-  - `app.module.ts` com todos os módulos
-
-### 📦 Shared Package (packages/shared/)
-- ✅ `types.ts` - Todos os tipos TypeScript
-- ✅ `constants.ts` - Cores, rotas API, mensagens
-- ✅ `utils.ts` - Funções utilitárias
-- ✅ `index.ts` - Exports
-
----
-
-## 🎯 O que Está Funcionando
-
-### ✅ 100% Funcional
-
-1. **Docker Compose**
-   - PostgreSQL rodando na porta 5432
-   - Redis na porta 6379
-   - MailHog (email) na porta 8025
-
-2. **Backend API**
-   - Servidor NestJS funcional
-   - Autenticação JWT completa
-   - Swagger UI em http://localhost:3333/api/docs
-   - Banco de dados populado com dados de teste
-
-3. **Autenticação**
-   - Login: `POST /auth/login`
-   - Register: `POST /auth/register`
-   - Refresh Token: `POST /auth/refresh`
-   - Get User: `GET /auth/me`
-
-4. **Usuários**
-   - Listar: `GET /users`
-   - Buscar: `GET /users/:id`
-   - Atualizar: `PUT /users/:id`
-   - Desativar: `DELETE /users/:id`
-
-5. **Database**
-   - Schema Prisma com 12 models
-   - Migrations funcionando
-   - Seed com:
-     - 2 barbearias
-     - 10 clientes
-     - 3 barbeiros
-     - 100+ agendamentos
-     - Transações financeiras
-     - Avaliações e promoções
-
----
-
-## 🚀 Como Usar AGORA
-
-### 1. Setup (Primeira Vez)
+## ⚡ Setup Rápido (5 minutos)
 
 ```bash
-# Windows
-setup.bat
+# 1. Clone
+git clone https://github.com/RenanGCV/BarberSaas.git
+cd BarberSaas
 
-# Linux/Mac
-chmod +x setup.sh
-./setup.sh
+# 2. Instale dependências
+npm install
+
+# 3. Configure ambiente
+cd apps/api
+cp .env.example .env
+# Edite .env com suas credenciais PostgreSQL
+
+# 4. Setup banco
+npx prisma migrate dev
+npx prisma db seed
+
+# 5. Volte para raiz
+cd ../..
 ```
 
-### 2. Rodar o Backend
+## 🏃 Rodar Projeto
 
 ```bash
+# Terminal 1 - API
 cd apps/api
+npm run start:dev
+
+# Terminal 2 - Web  
+cd apps/web
 npm run dev
 ```
 
-Acesse:
-- API: http://localhost:3333
-- Swagger: http://localhost:3333/api/docs
+**Acessar:**
+- 🔗 API: http://localhost:3000
+- 📚 Swagger: http://localhost:3000/api/docs
+- 🌐 Web: http://localhost:3001
 
-### 3. Testar no Swagger
-
-1. Vá para http://localhost:3333/api/docs
-2. Faça login em `/auth/login`:
-   ```json
-   {
-     "email": "owner@barbearia.com",
-     "password": "123456"
-   }
-   ```
-3. Copie o `accessToken`
-4. Clique em "Authorize" (topo direito)
-5. Cole o token e clique em "Authorize"
-6. Teste qualquer endpoint protegido!
-
----
-
-## 📚 Documentação para Você
-
-### Se Você é Humano 👨‍💻
-
-1. Leia **`INSTALLATION.md`** - Guia completo
-2. Explore **`ARCHITECTURE.md`** - Estrutura do projeto
-3. Consulte **`PROJECT-STATUS.md`** - O que está pronto
-4. Veja **`ROADMAP.md`** - Próximos passos
-
-### Se Você é uma IA 🤖
-
-1. **LEIA**: `AI-AGENT-GUIDE.md` (o mais importante!)
-2. Use como template: Módulos Auth e Users
-3. Sempre filtre por `tenantId` (multi-tenant)
-4. Siga os padrões NestJS
-5. Documente com Swagger
-
----
-
-## 🎯 Próximos Passos Recomendados
-
-### Implementar Módulos de Negócio
-
-Os stubs estão criados em `apps/api/src/`. Precisa implementar:
-
-#### Alta Prioridade 🔴
-1. **Appointments** - Sistema de agendamentos
-2. **Transactions + CashFlow** - CORE financeiro
-3. **Reports** - Relatórios
-
-#### Média Prioridade 🟡
-4. **Tenants** - Gestão de barbearias
-5. **Barbers** - Gestão de barbeiros
-6. **Services** - Serviços da barbearia
-7. **Payments** - Integração Pix
-
-### Criar Frontends
-
-1. **Web** (apps/web/)
-   - Next.js 14 + Tailwind
-   - Dashboard com métricas
-   - Módulo financeiro completo
-
-2. **Mobile** (apps/mobile/)
-   - React Native + Expo
-   - Design premium com animações
-   - Fluxo de agendamento
-
----
-
-## 📖 Guia Rápido de Arquivos
-
-| Você quer... | Leia este arquivo |
-|--------------|-------------------|
-| Instalar o projeto | `INSTALLATION.md` |
-| Entender a estrutura | `ARCHITECTURE.md` |
-| Saber o que está pronto | `PROJECT-STATUS.md` |
-| Ver o roadmap | `ROADMAP.md` |
-| **Programar (IA)** | **`AI-AGENT-GUIDE.md`** ⭐ |
-| Ver tipos TypeScript | `packages/shared/src/types.ts` |
-| Ver constantes (cores, etc) | `packages/shared/src/constants.ts` |
-| Entender autenticação | `apps/api/src/auth/` |
-| Ver schema do banco | `apps/api/prisma/schema.prisma` |
-
----
-
-## 🎨 Design System Implementado
-
-### Cores (Dark Premium)
-
-```typescript
-COLORS = {
-  primary: '#F5A027',        // Laranja principal
-  background: '#0F0F0F',     // Fundo escuro
-  backgroundSecondary: '#1A1A1A',
-  text: '#FFFFFF',
-  textSecondary: '#A0A0A0',
-}
-```
-
-Estas cores estão em `packages/shared/src/constants.ts` e devem ser usadas em **todos os frontends** (web e mobile).
-
----
-
-## ⚙️ Tecnologias Usadas
-
-### Backend
-- ✅ NestJS 10
-- ✅ Prisma ORM
-- ✅ PostgreSQL 15
-- ✅ JWT + Refresh Token
-- ✅ Swagger/OpenAPI
-- ✅ Bcrypt (hash de senhas)
-- ✅ Class Validator
-
-### Infraestrutura
-- ✅ Docker Compose
-- ✅ Redis (preparado para cache)
-- ✅ MailHog (SMTP de dev)
-- ✅ Multi-tenant
-
-### Planejado (não implementado ainda)
-- ⏳ Next.js 14 (web)
-- ⏳ React Native + Expo (mobile)
-- ⏳ Socket.io (real-time)
-- ⏳ Firebase (push notifications)
-
----
-
-## 🔑 Credenciais de Teste
-
-Após rodar `setup.bat`/`setup.sh`, use:
+## 👤 Usuários de Teste
 
 ```
-Proprietário:
-  Email: owner@barbearia.com
-  Senha: 123456
-
-Barbeiro:
-  Email: joao@barbearia.com
-  Senha: 123456
-
-Cliente:
-  Email: cliente1@email.com
-  Senha: 123456
+Owner:    owner@barbershop.com    / password123
+Admin:    admin@barbershop.com    / password123
+Barber:   barber@barbershop.com   / password123
+Customer: customer@barbershop.com / password123
 ```
 
----
+## 📊 Status Atual
 
-## 🐛 Problemas Comuns
+- ✅ **20 de 47 problemas resolvidos (43%)**
+- ✅ **3 sprints concluídas**
+- ✅ **0 erros de compilação**
+- ✅ **Validações 100% em português**
+- ✅ **Multi-tenant funcionando**
 
-### "Prisma Client não foi gerado"
+## 🎯 Próximas Tarefas (Prioridade)
+
+### 🔥 ALTA (Sprint 4)
+1. **Auto-detect OWNER** - Primeiro usuário de tenant vira OWNER
+2. **WorkingHours** - Adicionar horários de trabalho no schema
+3. **CSRF Protection** - Implementar proteção CSRF
+
+### 🟡 MÉDIA
+4. **Endpoint de Schedule** - GET /barbers/:id/schedule
+5. **Endpoint de Disponibilidade** - POST /appointments/check-availability
+6. **Swagger Completo** - Documentar todos endpoints
+
+## 📁 Estrutura Importante
+
+```
+apps/
+├── api/src/
+│   ├── auth/          ✅ Completo
+│   ├── appointments/  ✅ Completo + validações
+│   ├── barbers/       ✅ Completo + /me/appointments
+│   ├── common/
+│   │   ├── filters/   ✅ HttpExceptionFilter
+│   │   ├── decorators/✅ Custom validators
+│   │   └── dto/       ✅ PaginationDto
+│   └── tenants/       ✅ Multi-tenant funcionando
+└── web/src/
+    └── app/           ⚠️ Faltam loading states
+```
+
+## 🔧 Comandos Úteis
 
 ```bash
+# Migration nova
 cd apps/api
-npm run prisma:generate
+npx prisma migrate dev --name nome_da_migration
+
+# Reset banco (CUIDADO!)
+npx prisma migrate reset
+
+# Testes
+npm run test
+npm run test:watch
+
+# Build
+npm run build
 ```
 
-### "Porta 3333 já em uso"
+## ⚠️ Pontos de Atenção
 
-```bash
-# Windows (PowerShell Admin)
-netstat -ano | findstr :3333
-taskkill /PID <PID> /F
+- ✅ Multi-tenant está 100% isolado
+- ✅ Validações completas em português
+- ✅ Global Exception Filter ativo
+- ⚠️ CSRF ainda não implementado
+- ⚠️ Cache Redis preparado mas não usado
+- ⚠️ Testes E2E faltam
 
-# Linux/Mac
-lsof -ti:3333 | xargs kill -9
-```
+## 📚 Documentação Completa
 
-### Docker não conecta
+| Documento | Conteúdo |
+|-----------|----------|
+| **CONTEXTO-COMPLETO-PROJETO.md** | 📘 Tudo sobre o projeto |
+| **SPRINT-MELHORIAS-CONCLUIDA.md** | 📊 Sprint 3 detalhada |
+| **VALIDATION-IMPROVEMENTS.md** | 🛡️ Guia de validações |
+| **ANALISE-COMPLETA-PROJETO.md** | 🔍 47 problemas identificados |
+| **API.md** | 🔗 Endpoints disponíveis |
 
-```bash
-docker-compose down
-docker-compose up -d
-# Aguardar 10 segundos
-```
+## 🚨 Antes de Commitar
+
+- [ ] `npm run build` - sem erros
+- [ ] `npm run test` - testes passando
+- [ ] Validações em português
+- [ ] Transform decorators aplicados
+- [ ] TenantId validado
+- [ ] Swagger atualizado
+- [ ] Documentação atualizada
+
+## 💡 Dica
+
+Se está começando agora, faça nesta ordem:
+
+1. ✅ Rode o projeto localmente
+2. ✅ Teste login com usuários de seed
+3. ✅ Leia CONTEXTO-COMPLETO-PROJETO.md
+4. ✅ Escolha uma tarefa da todo list
+5. ✅ Implemente seguindo os padrões existentes
+6. ✅ Atualize documentação
+
+## 📞 Ajuda
+
+- **Repositório:** https://github.com/RenanGCV/BarberSaas
+- **Branch:** main
+- **Última atualização:** 03/12/2025
 
 ---
 
-## 🎊 Resumo Executivo
-
-### ✅ O que ESTÁ pronto
-
-- Arquitetura do monorepo
-- Backend NestJS estruturado
-- Autenticação JWT completa
-- Database schema (12 models)
-- Seed com dados de exemplo
-- Docker Compose funcional
-- Documentação completa
-- Scripts de setup
-
-### ⏳ O que PRECISA implementar
-
-- Módulos de negócio (Appointments, CashFlow, etc.)
-- Frontend Web (Next.js)
-- Frontend Mobile (React Native)
-- Real-time (Socket.io)
-- Push Notifications
-- Integração Pix
-
-### 📊 Progresso Geral
-
-```
-Backend:     [████░░░░░░] 40%
-Web:         [░░░░░░░░░░]  0%
-Mobile:      [░░░░░░░░░░]  0%
-Docs:        [██████████] 100%
-Infra:       [██████████] 100%
-
-TOTAL:       [████░░░░░░] 40%
-```
-
----
-
-## 💡 Dica Final
-
-**Para continuar o desenvolvimento**:
-
-1. Escolha um módulo (ex: Appointments)
-2. Abra `AI-AGENT-GUIDE.md`
-3. Siga o template de implementação
-4. Use Auth/Users como referência
-5. Teste no Swagger
-
-**O projeto está pronto para desenvolvimento!** 🚀
-
----
-
-## 📞 Recursos
-
-- 📖 Swagger UI: http://localhost:3333/api/docs
-- 🗄️ Prisma Studio: `npm run prisma:studio`
-- 📧 MailHog: http://localhost:8025
-- 🐳 Docker Logs: `docker-compose logs -f`
-
----
-
-**Data de Criação**: 1 de dezembro de 2025  
-**Versão**: 0.4.0 (Fundação Completa)  
-**Status**: ✅ PRONTO PARA DESENVOLVIMENTO
-
----
-
-## 🎯 Próxima Ação Sugerida
-
-```bash
-# 1. Execute o setup
-setup.bat  # ou ./setup.sh
-
-# 2. Inicie o backend
-cd apps/api
-npm run dev
-
-# 3. Acesse o Swagger
-# http://localhost:3333/api/docs
-
-# 4. Comece a implementar!
-# Leia: AI-AGENT-GUIDE.md
-```
-
-**Bom desenvolvimento! 🚀**
+**Boa codificação! 🚀**

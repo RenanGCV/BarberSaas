@@ -15,11 +15,11 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AppointmentsService } from './appointments.service';
 import {
-  ChangeStatusDto,
-  CheckAvailabilityDto,
-  CreateAppointmentDto,
-  QueryAppointmentDto,
-  UpdateAppointmentDto,
+    ChangeStatusDto,
+    CheckAvailabilityDto,
+    CreateAppointmentDto,
+    QueryAppointmentDto,
+    UpdateAppointmentDto,
 } from './dto';
 
 @ApiTags('appointments')
@@ -32,7 +32,9 @@ export class AppointmentsController {
   @Post()
   @ApiOperation({ summary: 'Criar novo agendamento' })
   create(@Body() createAppointmentDto: CreateAppointmentDto, @CurrentUser() user) {
-    return this.appointmentsService.create(createAppointmentDto, user.id, user.tenantId);
+    const customerId = user?.id || null;
+    const tenantId = user?.tenantId || null;
+    return this.appointmentsService.create(createAppointmentDto, customerId, tenantId);
   }
 
   @Get()
@@ -84,7 +86,7 @@ export class AppointmentsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Cancelar agendamento' })
   cancel(@Param('id') id: string, @CurrentUser() user) {
-    return this.appointmentsService.cancel(id, user.tenantId, user.id);
+    return this.appointmentsService.cancel(id, user.tenantId, user.id, user.role);
   }
 
   @Get('barber/:barberId/schedule')

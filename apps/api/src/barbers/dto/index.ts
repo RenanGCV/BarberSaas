@@ -3,23 +3,23 @@ import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'c
 
 export class CreateBarberDto {
   @ApiProperty({ example: 'user-id-123' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'O ID do usuário deve ser um texto válido' })
+  @IsNotEmpty({ message: 'O usuário é obrigatório' })
   userId: string;
 
   @ApiProperty({ example: ['Corte tradicional', 'Barba'] })
-  @IsArray()
+  @IsArray({ message: 'Especialidades devem ser uma lista de textos' })
   @IsOptional()
   specialties?: string[];
 
   @ApiProperty({ example: 30, description: 'Porcentagem de comissão (0-100)' })
-  @IsNumber()
-  @Min(0)
-  @Max(100)
+  @IsNumber({}, { message: 'A comissão deve ser um número' })
+  @Min(0, { message: 'A comissão não pode ser negativa' })
+  @Max(100, { message: 'A comissão não pode ser maior que 100%' })
   commission: number;
 
   @ApiProperty({ example: 'Segunda a Sexta: 09:00-18:00' })
-  @IsString()
+  @IsString({ message: 'Horário de trabalho deve ser um texto válido' })
   @IsOptional()
   workingHours?: string;
 }

@@ -191,7 +191,7 @@ model Service {
 model Appointment {
   id          String            @id @default(uuid())
   tenantId    String
-  customerId  String
+  customerId  String?
   barberId    String
   serviceId   String
   scheduledAt DateTime
@@ -202,7 +202,7 @@ model Appointment {
 
   // Relations
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customer    User         @relation("CustomerAppointments", fields: [customerId], references: [id])
+  customer    User?        @relation("CustomerAppointments", fields: [customerId], references: [id])
   barber      Barber       @relation("BarberAppointments", fields: [barberId], references: [id])
   service     Service      @relation(fields: [serviceId], references: [id])
   payment     Payment?
@@ -213,6 +213,8 @@ model Appointment {
   @@index([customerId])
   @@index([barberId])
   @@index([scheduledAt])
+  @@index([tenantId, scheduledAt])
+  @@index([barberId, scheduledAt])
   @@map("appointments")
 }
 

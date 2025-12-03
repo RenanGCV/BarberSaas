@@ -1,14 +1,14 @@
 'use client';
 
 import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '@/lib/store';
 
 export default function BarberDashboardPage() {
   const { user } = useAuthStore();
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['barber-dashboard'],
     queryFn: async () => {
       const [appointments] = await Promise.all([
@@ -19,6 +19,14 @@ export default function BarberDashboardPage() {
       };
     },
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const today = new Date().toISOString().split('T')[0];
   const todays = (data?.appointments || []).filter((a: any) => (a?.scheduledAt || '').slice(0,10) === today);
@@ -42,7 +50,7 @@ export default function BarberDashboardPage() {
           {(data?.appointments || []).slice(0,8).map((a: any) => (
             <div key={a.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
               <div>
-                <p className="font-medium">{a?.customer?.name || 'Cliente'}</p>
+                <p className="font-medium">{a?.customer?.name || 'Cliente Anônimo'}</p>
                 <p className="text-sm text-text-secondary">{a?.service?.name || 'Serviço'} • {formatDateTime(a?.scheduledAt)}</p>
               </div>
               <span className="text-xs text-text-secondary uppercase">{a?.status}</span>
