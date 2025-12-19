@@ -1,10 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentReportDto, CommissionReportDto, FinancialReportDto } from './dto';
+import { CsvGenerator } from './utils/csv-generator.service';
+import { PdfGenerator } from './utils/pdf-generator.service';
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private csvGenerator: CsvGenerator,
+    private pdfGenerator: PdfGenerator,
+  ) {}
 
   // Relatório Financeiro Completo
   async getFinancialReport(reportDto: FinancialReportDto, tenantId: string) {
@@ -802,7 +808,119 @@ export class ReportsService {
     };
   }
 
-  // Exportar para CSV
+  /**
+   * ========================================
+   * EXPORTAÇÃO CSV/PDF
+   * ========================================
+   */
+
+  /**
+   * Exportar relatório financeiro para CSV
+   */
+  async exportFinancialReportToCSV(
+    reportDto: FinancialReportDto,
+    tenantId: string,
+  ): Promise<string> {
+    const report = await this.getFinancialReport(reportDto, tenantId);
+    return this.csvGenerator.generateFinancialReportCSV(report.transactions);
+  }
+
+  /**
+   * Exportar relatório financeiro para PDF
+   */
+  async exportFinancialReportToPDF(
+    reportDto: FinancialReportDto,
+    tenantId: string,
+  ): Promise<Buffer> {
+    const report = await this.getFinancialReport(reportDto, tenantId);
+
+    const { startDate, endDate } = reportDto;
+    const period = `${new Date(startDate).toLocaleDateString('pt-BR')} - ${new Date(endDate).toLocaleDateString('pt-BR')}`;
+
+    return this.pdfGenerator.generateFinancialReport({
+      title: 'Relatório Financeiro',
+      period,
+      data: report.transactions,
+      summary: {
+        'Total de Receitas': `R$ ${report.summary.totalIncome.toFixed(2)}`,
+        'Total de Despesas': `R$ ${report.summary.totalExpense.toFixed(2)}`,
+        'Saldo': `R$ ${report.summary.balance.toFixed(2)}`,
+        'Total de Transações': report.summary.totalTransactions,
+      },
+    });
+  }
+
+  /**
+   * Exportar relatório de comissões para CSV
+   */
+  async exportCommissionReportToCSV(
+    reportDto: CommissionReportDto,
+    tenantId: string,
+  ): Promise<string> {
+    const report = await this.getCommissionReport(reportDto, tenantId);
+    return this.csvGenerator.generateCommissionReportCSV(report.commissions);
+  }
+
+  /**
+   * Exportar relatório de comissões para PDF
+   */
+  async exportCommissionReportToPDF(
+    reportDto: CommissionReportDto,
+    tenantId: string,
+  ): Promise<Buffer> {
+    const report = await this.getCommissionReport(reportDto, tenantId);
+
+    const { month, year } = reportDto;
+    const period = `${month}/${year}`;
+
+    return this.pdfGenerator.generateCommissionReport({
+      title: 'Relatório de Comissões',
+      period,
+      data: report.commissions,
+      summary: {
+        'Total de Comissões': `R$ ${report.summary.totalCommissions.toFixed(2)}`,
+        'Total de Barbeiros': report.summary.totalBarbers,
+      },
+    });
+  }
+
+  /**
+   * Exportar relatório de agendamentos para CSV
+   */
+  async exportAppointmentReportToCSV(
+    reportDto: AppointmentReportDto,
+    tenantId: string,
+  ): Promise<string> {
+    const report = await this.getAppointmentReport(reportDto, tenantId);
+    return this.csvGenerator.generateAppointmentReportCSV(report.appointments);
+  }
+
+  /**
+   * Exportar relatório de agendamentos para PDF
+   */
+  async exportAppointmentReportToPDF(
+    reportDto: AppointmentReportDto,
+    tenantId: string,
+  ): Promise<Buffer> {
+    const report = await this.getAppointmentReport(reportDto, tenantId);
+
+    const { startDate, endDate } = reportDto;
+    const period = `${new Date(startDate).toLocaleDateString('pt-BR')} - ${new Date(endDate).toLocaleDateString('pt-BR')}`;
+
+    return this.pdfGenerator.generateAppointmentReport({
+      title: 'Relatório de Agendamentos',
+      period,
+      data: report.appointments,
+      summary: {
+        'Total de Agendamentos': report.summary.totalAppointments,
+        'Confirmados': report.summary.confirmed,
+        'Cancelados': report.summary.cancelled,
+        'Taxa de Conclusão': `${report.summary.completionRate}%`,
+      },
+    });
+  }
+
+  // Exportar para CSV (método legado - mantido para compatibilidade)
   async exportToCSV(data: any[], filename: string): Promise<string> {
     if (!data || data.length === 0) {
       return '';
@@ -813,8 +931,252 @@ export class ReportsService {
       Object.values(row).map(val => 
         typeof val === 'string' && val.includes(',') ? `"${val}"` : val
       ).join(',')
+
     );
 
     return [headers, ...rows].join('\n');
+  }
+
+  /**
+   * Dashboard Stats - Estatísticas gerais
+   */
+  async getDashboardStats(tenantId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Início do mês atual
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Início do mês anterior
+    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    const [
+      todayRevenue,
+      todayAppointments,
+      totalCustomers,
+      monthRevenue,
+      lastMonthRevenue,
+    ] = await Promise.all([
+      // Receita de hoje
+      this.prisma.transaction.aggregate({
+        where: {
+          tenantId,
+          type: 'INCOME',
+          createdAt: { gte: today, lte: endOfDay },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Agendamentos de hoje
+      this.prisma.appointment.count({
+        where: {
+          barber: { tenantId },
+          scheduledAt: { gte: today, lte: endOfDay },
+        },
+      }),
+
+      // Total de clientes
+      this.prisma.user.count({
+        where: {
+          tenantId,
+          role: 'CUSTOMER',
+        },
+      }),
+
+      // Receita do mês
+      this.prisma.transaction.aggregate({
+        where: {
+          tenantId,
+          type: 'INCOME',
+          createdAt: { gte: startOfMonth },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Receita do mês anterior
+      this.prisma.transaction.aggregate({
+        where: {
+          tenantId,
+          type: 'INCOME',
+          createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    // Calcular crescimento percentual
+    const lastMonth = lastMonthRevenue._sum.amount || 0;
+    const currentMonth = monthRevenue._sum.amount || 0;
+    const revenueGrowth = lastMonth > 0 
+      ? ((currentMonth - lastMonth) / lastMonth * 100).toFixed(1)
+      : 0;
+
+    return {
+      todayRevenue: todayRevenue._sum.amount || 0,
+      todayAppointments,
+      totalCustomers,
+      monthRevenue: currentMonth,
+      revenueGrowth: Number(revenueGrowth),
+    };
+  }
+
+  /**
+   * Dados para gráfico de receita
+   */
+  async getRevenueChart(tenantId: string, days: number = 7) {
+    const dates = [];
+    const today = new Date();
+
+    // Gerar array de datas
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      dates.push(date);
+    }
+
+    // Buscar receita por dia
+    const revenueByDay = await Promise.all(
+      dates.map(async (date) => {
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const result = await this.prisma.transaction.aggregate({
+          where: {
+            tenantId,
+            type: 'INCOME',
+            createdAt: { gte: date, lte: endOfDay },
+          },
+          _sum: { amount: true },
+        });
+
+        return {
+          date: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          revenue: result._sum.amount || 0,
+        };
+      })
+    );
+
+    return revenueByDay;
+  }
+
+  /**
+   * Agendamentos por dia para gráfico
+   */
+  async getAppointmentsByDay(tenantId: string, days: number = 7) {
+    const dates = [];
+    const today = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      dates.push(date);
+    }
+
+    const appointmentsByDay = await Promise.all(
+      dates.map(async (date) => {
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const count = await this.prisma.appointment.count({
+          where: {
+            barber: { tenantId },
+            scheduledAt: { gte: date, lte: endOfDay },
+          },
+        });
+
+        return {
+          day: date.toLocaleDateString('pt-BR', { weekday: 'short' }),
+          count,
+        };
+      })
+    );
+
+    return appointmentsByDay;
+  }
+
+  /**
+   * Top serviços mais agendados
+   */
+  async getTopServices(tenantId: string, limit: number = 5) {
+    const services = await this.prisma.service.findMany({
+      where: { tenantId, isActive: true },
+      include: {
+        appointments: {
+          where: {
+            status: { in: ['COMPLETED', 'CONFIRMED'] },
+          },
+          include: {
+            service: true,
+          },
+        },
+      },
+    });
+
+    const servicesWithStats = services.map((service) => {
+      const totalRevenue = service.appointments.reduce(
+        (sum, apt) => sum + service.price,
+        0
+      );
+      
+      return {
+        id: service.id,
+        name: service.name,
+        totalRevenue,
+        count: service.appointments.length,
+      };
+    });
+
+    return servicesWithStats
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, limit);
+  }
+
+  /**
+   * Top barbeiros por receita
+   */
+  async getTopBarbers(tenantId: string, limit: number = 5) {
+    const barbers = await this.prisma.barber.findMany({
+      where: { tenantId, isActive: true },
+      include: {
+        user: {
+          select: {
+            name: true,
+            avatar: true,
+          },
+        },
+        appointments: {
+          where: {
+            status: { in: ['COMPLETED', 'CONFIRMED'] },
+          },
+          include: {
+            service: true,
+          },
+        },
+      },
+    });
+
+    const barbersWithStats = barbers.map((barber) => {
+      const totalRevenue = barber.appointments.reduce(
+        (sum, apt) => sum + apt.service.price,
+        0
+      );
+
+      return {
+        id: barber.id,
+        name: barber.user.name,
+        avatar: barber.user.avatar,
+        totalRevenue,
+        appointmentsCount: barber.appointments.length,
+      };
+    });
+
+    return barbersWithStats
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, limit);
   }
 }

@@ -115,14 +115,15 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users        User[]
-  barbers      Barber[]
-  services     Service[]
-  appointments Appointment[]
-  transactions Transaction[]
-  cashFlows    CashFlow[]
-  promotions   Promotion[]
-  reviews      Review[]
+  users            User[]
+  barbers          Barber[]
+  services         Service[]
+  appointments     Appointment[]
+  transactions     Transaction[]
+  cashFlows        CashFlow[]
+  promotions       Promotion[]
+  reviews          Review[]
+  blockedSchedules BlockedSchedule[]
 
   @@index([slug])
   @@index([city])
@@ -135,17 +136,19 @@ model Barber {
   tenantId       String
   specialties    String[]
   commissionRate Float    @default(0.5)
+  workingHours   Json?    // { "monday": { "start": "09:00", "end": "18:00" }, ... }
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Relations
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appointments Appointment[]   @relation("BarberAppointments")
-  schedules    Schedule[]
-  reviews      Review[]
-  services     BarberService[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]    @relation("BarberAppointments")
+  schedules       Schedule[]
+  reviews         Review[]
+  services        BarberService[]
+  blockedSchedules BlockedSchedule[]
 
   @@index([tenantId])
   @@index([userId])
@@ -166,6 +169,25 @@ model Schedule {
 
   @@index([barberId])
   @@map("schedules")
+}
+
+model BlockedSchedule {
+  id        String   @id @default(uuid())
+  barberId  String
+  tenantId  String
+  startTime DateTime
+  endTime   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([barberId])
+  @@index([tenantId])
+  @@index([startTime])
+  @@map("blocked_schedules")
 }
 
 model Service {
