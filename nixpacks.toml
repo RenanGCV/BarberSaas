@@ -7,7 +7,7 @@ nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
 cmds = ["npm ci --legacy-peer-deps"]
 
 [phases.build]
-cmds = ["cd apps/api && npm install && npx prisma generate && npm run build"]
+cmds = ["cd apps/api && npm install && npx prisma generate && npm run build && chmod +x start.sh"]
 
 [start]
-cmd = "cd apps/api && npx prisma migrate deploy && node dist/src/main"
+cmd = "cd apps/api && sh start.sh"
