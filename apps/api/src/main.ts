@@ -83,6 +83,11 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN'],
   });
 
+  // Prefixo global da API
+  app.setGlobalPrefix('api', {
+    exclude: ['health'], // Health check sem prefixo para facilitar monitoramento
+  });
+
   // Validation
   app.useGlobalPipes(
     new ValidationPipe({
