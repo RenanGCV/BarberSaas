@@ -5,10 +5,10 @@
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
 
 [phases.install]
-cmds = ["npm ci --workspace=@barbersaas/api --workspace=@barbersaas/shared --include-workspace-root"]
+cmds = ["npm ci"]
 
 [phases.build]
-cmds = ["cd apps/api && npx prisma generate && npm run build"]
+cmds = ["cd apps/api && npm install && npx prisma generate && npm run build && ls -la dist/"]
 
 [start]
 cmd = "cd apps/api && npx prisma migrate deploy && npm run start:prod"
