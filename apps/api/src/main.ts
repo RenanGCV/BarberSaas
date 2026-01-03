@@ -44,26 +44,42 @@ async function bootstrap() {
     });
   }
   
-  // CORS Configuration
-  const corsOrigins = process.env.CORS_ORIGIN 
-    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-    : [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'https://barbearia-estilo-silk.vercel.app',
-      ];
-
-  // Em desenvolvimento, adicionar localhost
-  if (process.env.NODE_ENV !== 'production') {
-    if (!corsOrigins.includes('http://localhost:3000')) {
-      corsOrigins.push('http://localhost:3000');
+  // CORS Configuration - aceita qualquer subdomínio do Vercel
+  const corsOriginHandler = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Permitir requests sem origin (mobile apps, curl, etc)
+    if (!origin) {
+      return callback(null, true);
     }
-  }
 
-  console.log('CORS Origins:', corsOrigins);
+    // Lista de origens permitidas
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://barbearia-estilo-silk.vercel.app',
+    ];
+
+    // Adicionar origens da variável de ambiente
+    if (process.env.CORS_ORIGIN) {
+      process.env.CORS_ORIGIN.split(',').forEach(o => allowedOrigins.push(o.trim()));
+    }
+
+    // Verificar se a origem está na lista ou é um domínio Vercel
+    const isAllowed = allowedOrigins.includes(origin) || 
+                      origin.endsWith('.vercel.app') ||
+                      origin.endsWith('.railway.app');
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  };
+
+  console.log('CORS configured with dynamic origin checking');
 
   app.enableCors({
-    origin: corsOrigins,
+    origin: corsOriginHandler,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN'],
