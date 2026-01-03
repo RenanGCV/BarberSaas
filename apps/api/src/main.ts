@@ -21,9 +21,9 @@ async function bootstrap() {
     const secret = process.env.CSRF_SECRET || tokens.secretSync();
     
     app.use((req: any, res: any, next: any) => {
-      // Pular CSRF para rotas públicas
-      const publicRoutes = ['/auth/login', '/auth/register', '/health'];
-      if (publicRoutes.some(route => req.path.startsWith(route))) {
+      // Pular CSRF para rotas públicas (com ou sem prefixo /api)
+      const publicRoutes = ['/auth/login', '/auth/register', '/health', '/api/auth/login', '/api/auth/register', '/api/health'];
+      if (publicRoutes.some(route => req.path === route || req.path.startsWith(route))) {
         return next();
       }
       
@@ -34,7 +34,7 @@ async function bootstrap() {
       }
       
       if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
-        const token = req.headers['x-xsrf-token'] || req.body._csrf;
+        const token = req.headers['x-xsrf-token'] || (req.body && req.body._csrf);
         if (!tokens.verify(secret, token)) {
           return res.status(403).json({ message: 'Token CSRF inválido' });
         }
