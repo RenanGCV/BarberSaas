@@ -86,21 +86,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       method: request.method,
       message,
       error,
-      // Adiciona requestId se disponível (útil para rastreamento com middleware)
-      ...(request['id'] && { requestId: request['id'] }),
     };
-
-    // Garantir headers CORS mesmo em caso de erro
-    const origin = request.headers.origin;
-    if (origin) {
-      const isAllowed = origin.endsWith('.vercel.app') || 
-                        origin.endsWith('.railway.app') ||
-                        origin.includes('localhost');
-      if (isAllowed) {
-        response.setHeader('Access-Control-Allow-Origin', origin);
-        response.setHeader('Access-Control-Allow-Credentials', 'true');
-      }
-    }
 
     response.status(status).json(errorResponse);
   }
