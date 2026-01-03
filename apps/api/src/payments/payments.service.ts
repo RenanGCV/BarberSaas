@@ -15,17 +15,12 @@ export class PaymentsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Criar pagamento Pix (Mock - substituir por integração real)
-   * 
-   * Para integração real com Mercado Pago:
-   * 1. npm install mercadopago
-   * 2. Configurar credenciais no .env
-   * 3. Substituir lógica mock pela SDK do Mercado Pago
+   * Criar pagamento Pix (Mock)
    */
   async createPixPayment(dto: CreatePixPaymentDto, tenantId: string) {
     const { appointmentId, amount, payerEmail, payerName, payerDocument } = dto;
 
-    // Validar agendamento
+    // Validar agendamento com include correto
     const appointment = await this.prisma.appointment.findFirst({
       where: {
         id: appointmentId,
@@ -36,11 +31,6 @@ export class PaymentsService {
         barber: {
           include: {
             user: { select: { name: true } },
-          },
-        },
-        customer: {
-          include: {
-            user: { select: { name: true, email: true } },
           },
         },
       },
@@ -68,11 +58,7 @@ export class PaymentsService {
       );
     }
 
-    // ============================================
-    // MOCK: Simulação de integração com Pix
-    // ============================================
-    // Em produção, substituir por SDK do Mercado Pago, Stripe, etc.
-    
+    // Gerar IDs de pagamento mock
     const paymentId = `pix_${randomUUID()}`;
     
     // Simulação de QR Code (Base64)
@@ -81,11 +67,11 @@ export class PaymentsService {
     // Simulação de Pix Copia e Cola
     const qrCodeText = this.generatePixCopyPaste(
       amount,
-      payerName || appointment.customer?.user.name || 'Cliente',
+      payerName || 'Cliente',
       paymentId,
     );
 
-    // Salvar transação como PENDING
+    // Salvar transação
     const transaction = await this.prisma.transaction.create({
       data: {
         tenantId,
@@ -94,9 +80,20 @@ export class PaymentsService {
         amount,
         category: 'Serviço',
         paymentMethod: 'PIX',
-        paymentStatus: 'PENDING',
-        description: `Pagamento Pix - ${appointment.service.name}`,
-        userId: appointment.customer?.userId || null,
+        description: `Pagamento Pix [${paymentId}] - ${appointment.service.name}`,
+        createdBy: appointment.customerId || appointment.barberId,
+      },
+    });
+
+    // Criar registro de Payment
+    await this.prisma.payment.create({
+      data: {
+        appointmentId,
+        amount,
+        method: 'PIX',
+        status: 'PENDING',
+        pixKey: paymentId,
+        pixQrCode: qrCodeBase64,
       },
     });
 
@@ -109,7 +106,7 @@ export class PaymentsService {
       amount,
       qrCode: qrCodeBase64,
       qrCodeText,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutos
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       appointment: {
         id: appointment.id,
         service: appointment.service.name,
@@ -124,15 +121,10 @@ export class PaymentsService {
    * Consultar status de um pagamento
    */
   async getPaymentStatus(paymentId: string, tenantId: string) {
-    // Em produção: consultar API do gateway de pagamento
-    
-    // Mock: buscar transaction no banco
-    const transaction = await this.prisma.transaction.findFirst({
+    // Buscar payment no banco
+    const payment = await this.prisma.payment.findFirst({
       where: {
-        tenantId,
-        description: {
-          contains: paymentId,
-        },
+        pixKey: paymentId,
       },
       include: {
         appointment: {
@@ -143,20 +135,20 @@ export class PaymentsService {
       },
     });
 
-    if (!transaction) {
+    if (!payment) {
       throw new NotFoundException('Pagamento não encontrado');
     }
 
     return {
       paymentId,
-      status: transaction.paymentStatus,
-      amount: transaction.amount,
-      paidAt: transaction.paymentStatus === 'PAID' ? transaction.createdAt : null,
-      appointment: transaction.appointment
+      status: payment.status,
+      amount: payment.amount,
+      paidAt: payment.paidAt,
+      appointment: payment.appointment
         ? {
-            id: transaction.appointment.id,
-            service: transaction.appointment.service.name,
-            scheduledAt: transaction.appointment.scheduledAt,
+            id: payment.appointment.id,
+            service: payment.appointment.service.name,
+            scheduledAt: payment.appointment.scheduledAt,
           }
         : null,
     };
@@ -164,50 +156,41 @@ export class PaymentsService {
 
   /**
    * Processar webhook de confirmação de pagamento
-   * 
-   * Este endpoint deve ser chamado pelo gateway de pagamento quando o status mudar
    */
   async processWebhook(payload: any) {
     this.logger.log('Webhook recebido', JSON.stringify(payload));
 
-    // ============================================
-    // MOCK: Processamento de webhook
-    // ============================================
-    // Em produção: validar assinatura do webhook, processar dados reais
-    
     const { paymentId, status } = payload;
 
     if (!paymentId) {
       throw new BadRequestException('paymentId é obrigatório no webhook');
     }
 
-    // Buscar transaction
-    const transaction = await this.prisma.transaction.findFirst({
+    // Buscar payment
+    const payment = await this.prisma.payment.findFirst({
       where: {
-        description: {
-          contains: paymentId,
-        },
+        pixKey: paymentId,
       },
       include: {
         appointment: true,
       },
     });
 
-    if (!transaction) {
-      this.logger.warn(`Transaction não encontrada para paymentId: ${paymentId}`);
-      return { message: 'Transaction não encontrada' };
+    if (!payment) {
+      this.logger.warn(`Payment não encontrado para paymentId: ${paymentId}`);
+      return { message: 'Payment não encontrado' };
     }
 
-    // Atualizar status da transação
+    // Atualizar status do pagamento
     if (status === 'approved' || status === 'PAID') {
-      await this.confirmPayment(transaction.id, transaction.tenantId);
+      await this.confirmPayment(payment.id, payment.appointment?.tenantId || '');
       return { message: 'Pagamento confirmado com sucesso' };
     }
 
     if (status === 'rejected' || status === 'FAILED') {
-      await this.prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { paymentStatus: 'FAILED' },
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: 'FAILED' },
       });
       
       this.logger.warn(`Pagamento falhou: ${paymentId}`);
@@ -218,54 +201,55 @@ export class PaymentsService {
   }
 
   /**
-   * Confirmar pagamento manualmente (para testes)
+   * Confirmar pagamento manualmente
    */
-  async confirmPayment(transactionId: string, tenantId: string) {
-    const transaction = await this.prisma.transaction.findFirst({
-      where: { id: transactionId, tenantId },
+  async confirmPayment(paymentId: string, tenantId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId },
       include: { appointment: true },
     });
 
-    if (!transaction) {
-      throw new NotFoundException('Transação não encontrada');
+    if (!payment) {
+      throw new NotFoundException('Pagamento não encontrado');
     }
 
-    if (transaction.paymentStatus === 'PAID') {
+    if (payment.status === 'PAID') {
       throw new BadRequestException('Pagamento já foi confirmado');
     }
 
-    // Atualizar transação
-    await this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: { paymentStatus: 'PAID' },
+    // Atualizar payment
+    await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { 
+        status: 'PAID',
+        paidAt: new Date(),
+      },
     });
 
     // Atualizar status do agendamento
-    if (transaction.appointmentId) {
+    if (payment.appointmentId) {
       await this.prisma.appointment.update({
-        where: { id: transaction.appointmentId },
+        where: { id: payment.appointmentId },
         data: { status: 'CONFIRMED' },
       });
 
-      this.logger.log(`Agendamento ${transaction.appointmentId} confirmado via pagamento`);
+      this.logger.log(`Agendamento ${payment.appointmentId} confirmado via pagamento`);
     }
 
-    this.logger.log(`Pagamento confirmado: Transaction ${transactionId}`);
+    this.logger.log(`Pagamento confirmado: ${paymentId}`);
 
     return {
       message: 'Pagamento confirmado com sucesso',
-      transactionId,
-      appointmentId: transaction.appointmentId,
+      paymentId,
+      appointmentId: payment.appointmentId,
       status: 'PAID',
     };
   }
 
   /**
    * Gerar QR Code mock (Base64)
-   * Em produção: usar biblioteca qrcode ou API do gateway
    */
   private generateMockQRCode(paymentId: string, amount: number): string {
-    // Mock: SVG simples como Base64
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
         <rect width="200" height="200" fill="white"/>
@@ -282,10 +266,8 @@ export class PaymentsService {
 
   /**
    * Gerar Pix Copia e Cola mock
-   * Em produção: retornado pela API do gateway
    */
   private generatePixCopyPaste(amount: number, payerName: string, paymentId: string): string {
-    // Mock: formato simplificado
     const timestamp = Date.now();
     return `00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540${amount.toFixed(2)}5802BR5925${payerName}6009SAO PAULO62070503***${paymentId.substring(0, 8)}6304${timestamp}`;
   }

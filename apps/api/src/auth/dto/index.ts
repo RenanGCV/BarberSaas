@@ -43,6 +43,11 @@ export class RegisterDto {
     message: 'Telefone inválido. Use o formato: (11) 98765-4321 ou 11987654321'
   })
   phone?: string;
+
+  @ApiProperty({ example: 'tenant-uuid', required: false })
+  @IsOptional()
+  @IsString({ message: 'Tenant ID deve ser um texto válido' })
+  tenantId?: string;
 }
 
 export class RefreshTokenDto {

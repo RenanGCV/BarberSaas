@@ -845,7 +845,7 @@ export class ReportsService {
         'Total de Receitas': `R$ ${report.summary.totalIncome.toFixed(2)}`,
         'Total de Despesas': `R$ ${report.summary.totalExpense.toFixed(2)}`,
         'Saldo': `R$ ${report.summary.balance.toFixed(2)}`,
-        'Total de Transações': report.summary.totalTransactions,
+        'Total de Transações': report.summary.transactionCount,
       },
     });
   }
@@ -858,7 +858,7 @@ export class ReportsService {
     tenantId: string,
   ): Promise<string> {
     const report = await this.getCommissionReport(reportDto, tenantId);
-    return this.csvGenerator.generateCommissionReportCSV(report.commissions);
+    return this.csvGenerator.generateCommissionReportCSV(report.barbers);
   }
 
   /**
@@ -876,7 +876,7 @@ export class ReportsService {
     return this.pdfGenerator.generateCommissionReport({
       title: 'Relatório de Comissões',
       period,
-      data: report.commissions,
+      data: report.barbers,
       summary: {
         'Total de Comissões': `R$ ${report.summary.totalCommissions.toFixed(2)}`,
         'Total de Barbeiros': report.summary.totalBarbers,
@@ -892,7 +892,7 @@ export class ReportsService {
     tenantId: string,
   ): Promise<string> {
     const report = await this.getAppointmentReport(reportDto, tenantId);
-    return this.csvGenerator.generateAppointmentReportCSV(report.appointments);
+    return this.csvGenerator.generateAppointmentReportCSV(report.popularServices);
   }
 
   /**
@@ -910,12 +910,12 @@ export class ReportsService {
     return this.pdfGenerator.generateAppointmentReport({
       title: 'Relatório de Agendamentos',
       period,
-      data: report.appointments,
+      data: report.popularServices,
       summary: {
-        'Total de Agendamentos': report.summary.totalAppointments,
-        'Confirmados': report.summary.confirmed,
+        'Total de Agendamentos': report.summary.total,
+        'Concluídos': report.summary.completed,
         'Cancelados': report.summary.cancelled,
-        'Taxa de Conclusão': `${report.summary.completionRate}%`,
+        'Taxa de Conclusão': report.summary.completionRate,
       },
     });
   }

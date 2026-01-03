@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('health')
@@ -9,6 +9,7 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Verificar saúde da API' })
+  @ApiResponse({ status: 200, description: 'API e banco de dados operacionais' })
   async check() {
     try {
       // Testar conexão com o banco

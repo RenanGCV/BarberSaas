@@ -35,35 +35,52 @@ export class AppointmentsGateway implements OnGatewayConnection, OnGatewayDiscon
   handleJoinTenant(@MessageBody() data: { tenantId: string; userId?: string }, @ConnectedSocket() client: Socket) {
     const { tenantId, userId } = data;
     
-    // TODO: Validar se userId tem permissão para acessar este tenantId
-    // Por enquanto, aceitamos apenas se userId for fornecido no handshake
+    // Validar se userId tem permissão para acessar este tenantId
     const userTenantId = (client.handshake as any).auth?.tenantId;
+    const userRole = (client.handshake as any).auth?.role;
     
-    if (userTenantId && userTenantId !== tenantId) {
+    // Verificação de segurança multi-tenant
+    if (!userTenantId) {
+      this.logger.warn(`Cliente ${client.id} tentou entrar sem tenant ID na autenticação`);
+      return { event: 'error', data: { message: 'Autenticação de tenant obrigatória' } };
+    }
+    
+    if (userTenantId !== tenantId) {
       this.logger.warn(`Cliente ${client.id} tentou entrar em tenant ${tenantId} mas pertence a ${userTenantId}`);
       return { event: 'error', data: { message: 'Acesso negado ao tenant solicitado' } };
     }
     
     client.join(`tenant:${tenantId}`);
-    this.logger.log(`Cliente ${client.id} entrou na sala tenant:${tenantId}`);
+    this.logger.log(`Cliente ${client.id} (role: ${userRole}) entrou na sala tenant:${tenantId}`);
     return { event: 'joined', data: { tenantId } };
   }
 
   // Cliente se junta à sala do barbeiro
   @SubscribeMessage('join-barber')
-  handleJoinBarber(@MessageBody() data: { barberId: string; userId?: string }, @ConnectedSocket() client: Socket) {
+  async handleJoinBarber(@MessageBody() data: { barberId: string; userId?: string }, @ConnectedSocket() client: Socket) {
     const { barberId, userId } = data;
     
-    // TODO: Validar se userId é o próprio barbeiro ou admin do tenant
+    // Validar se userId é o próprio barbeiro ou admin do tenant
     const userTenantId = (client.handshake as any).auth?.tenantId;
+    const userRole = (client.handshake as any).auth?.role;
+    const authenticatedUserId = (client.handshake as any).auth?.userId;
     
-    if (!userTenantId) {
-      this.logger.warn(`Cliente ${client.id} tentou entrar em sala do barbeiro sem autenticação`);
-      return { event: 'error', data: { message: 'Autenticação necessária' } };
+    if (!userTenantId || !authenticatedUserId) {
+      this.logger.warn(`Cliente ${client.id} tentou entrar em sala do barbeiro sem autenticação completa`);
+      return { event: 'error', data: { message: 'Autenticação completa necessária' } };
+    }
+    
+    // Verificar se é admin/owner ou o próprio barbeiro
+    const isAdmin = ['ADMIN', 'OWNER'].includes(userRole);
+    const isOwnBarber = userId === authenticatedUserId;
+    
+    if (!isAdmin && !isOwnBarber) {
+      this.logger.warn(`Cliente ${client.id} (userId: ${authenticatedUserId}) tentou acessar sala do barbeiro ${barberId} sem permissão`);
+      return { event: 'error', data: { message: 'Sem permissão para acessar esta sala de barbeiro' } };
     }
     
     client.join(`barber:${barberId}`);
-    this.logger.log(`Cliente ${client.id} entrou na sala barber:${barberId}`);
+    this.logger.log(`Cliente ${client.id} (role: ${userRole}) entrou na sala barber:${barberId}`);
     return { event: 'joined', data: { barberId } };
   }
 

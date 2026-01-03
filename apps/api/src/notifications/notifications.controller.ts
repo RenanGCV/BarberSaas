@@ -90,12 +90,4 @@ export class NotificationsController {
   ) {
     return this.notificationsService.markAsRead(notificationId, userId);
   }
-
-  @Post('test/send-reminders')
-  @Roles('OWNER', 'ADMIN')
-  @ApiOperation({ summary: '[TESTE] Enviar lembretes de agendamentos (1h antes)' })
-  @ApiResponse({ status: 200, description: 'Lembretes enviados' })
-  async sendReminders() {
-    return this.notificationsService.sendAppointmentReminders();
-  }
 }

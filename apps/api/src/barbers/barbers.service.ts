@@ -1,6 +1,7 @@
 ﻿import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BarberAvailabilityDto, CreateBarberDto, UpdateBarberDto } from './dto';
+import { UpdateWorkingHoursDto } from './dto/update-working-hours.dto';
 
 @Injectable()
 export class BarbersService {
@@ -54,6 +55,7 @@ export class BarbersService {
         tenantId,
         specialties: createBarberDto.specialties || [],
         ...(commissionRate != null ? { commissionRate } : {}),
+        ...(createBarberDto.workingHours ? { workingHours: createBarberDto.workingHours } : {}),
       },
       include: {
         user: {
@@ -326,6 +328,29 @@ export class BarbersService {
       data: {
         specialties: updateBarberDto.specialties,
         ...(commissionRate != null ? { commissionRate } : {}),
+        ...(updateBarberDto.workingHours !== undefined ? { workingHours: updateBarberDto.workingHours } : {}),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateWorkingHours(id: string, workingHoursDto: UpdateWorkingHoursDto, tenantId: string) {
+    await this.findOne(id, tenantId);
+
+    return this.prisma.barber.update({
+      where: { id },
+      data: {
+        workingHours: workingHoursDto.workingHours as any,
       },
       include: {
         user: {

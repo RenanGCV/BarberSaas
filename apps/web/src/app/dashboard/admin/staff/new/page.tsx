@@ -39,6 +39,8 @@ export default function NewStaffPage() {
       }
 
       // 2. Criar o barbeiro vinculado ao usuário
+      const workingHours = `${workDays.join(', ')}: ${String(startTime.hours).padStart(2, '0')}:${String(startTime.minutes).padStart(2, '0')}-${String(endTime.hours).padStart(2, '0')}:${String(endTime.minutes).padStart(2, '0')}`;
+      
       await api.post('/barbers', {
         userId,
         commission: Number(form.commission) || 0,
@@ -47,6 +49,7 @@ export default function NewStaffPage() {
           .split(',')
           .map((s: string) => s.trim())
           .filter(Boolean),
+        workingHours,
       });
     },
     onSuccess: () => {

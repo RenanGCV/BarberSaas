@@ -59,6 +59,55 @@ async function main() {
     },
   });
 
+  // Criar barbeiros
+  console.log('👨‍💼 Criando barbeiros...');
+  
+  const barber1User = await prisma.user.create({
+    data: {
+      email: 'joao@barbearia.com',
+      password: hashedPassword,
+      name: 'João Santos',
+      phone: '(11) 91234-5678',
+      role: UserRole.BARBER,
+      tenantId: tenant1.id,
+      avatar: 'https://i.pravatar.cc/150?img=12',
+    },
+  });
+
+  const barber1 = await prisma.barber.create({
+    data: {
+      userId: barber1User.id,
+      tenantId: tenant1.id,
+      specialties: ['Corte Clássico', 'Barba', 'Degradê'],
+      commissionRate: 0.5,
+      workingHours: 'Segunda a Sexta: 09:00-18:00',
+    },
+  });
+
+  const barber2User = await prisma.user.create({
+    data: {
+      email: 'pedro@barbearia.com',
+      password: hashedPassword,
+      name: 'Pedro Oliveira',
+      phone: '(11) 92345-6789',
+      role: UserRole.BARBER,
+      tenantId: tenant1.id,
+      avatar: 'https://i.pravatar.cc/150?img=13',
+    },
+  });
+
+  const barber2 = await prisma.barber.create({
+    data: {
+      userId: barber2User.id,
+      tenantId: tenant1.id,
+      specialties: ['Corte Moderno', 'Sobrancelha', 'Relaxamento'],
+      commissionRate: 0.45,
+      workingHours: 'Segunda a Sábado: 10:00-20:00',
+    },
+  });
+
+  console.log('✅ 2 barbeiros criados');
+
   // Criar serviços padrão
   const services = await prisma.service.createMany({
     data: [

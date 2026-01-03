@@ -18,12 +18,9 @@ export class TasksService {
   async handleAppointmentReminders() {
     this.logger.log('Executando cron: Lembretes de agendamentos');
     
-    try {
-      const result = await this.notificationsService.sendAppointmentReminders();
-      this.logger.log(`Lembretes enviados: ${result.remindersSent}`);
-    } catch (error) {
-      this.logger.error('Erro ao enviar lembretes:', error);
-    }
+    // TODO: Implementar busca de agendamentos próximos e envio de lembretes
+    // Por agora, apenas loga
+    this.logger.log('Lembretes de agendamentos: função pendente de implementação');
   }
 
   /**

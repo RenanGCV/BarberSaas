@@ -52,11 +52,13 @@ export class PdfGenerator {
       const col4 = 450;
 
       doc
+        .font('Helvetica-Bold')
         .fontSize(9)
-        .text('Data', col1, tableTop, { bold: true })
+        .text('Data', col1, tableTop)
         .text('Tipo', col2, tableTop)
         .text('Descrição', col3, tableTop)
-        .text('Valor', col4, tableTop);
+        .text('Valor', col4, tableTop)
+        .font('Helvetica');
 
       doc.moveDown();
 
@@ -131,8 +133,10 @@ export class PdfGenerator {
 
       reportData.data.forEach((barber: any) => {
         doc
+          .font('Helvetica-Bold')
           .fontSize(12)
-          .text(`Barbeiro: ${barber.barberName}`, { bold: true })
+          .text(`Barbeiro: ${barber.barberName}`)
+          .font('Helvetica')
           .fontSize(10)
           .text(`Total de Serviços: ${barber.totalAppointments}`)
           .text(`Receita Total: R$ ${barber.totalRevenue.toFixed(2)}`)

@@ -48,9 +48,9 @@ export class SchedulesService {
 
     // Parsear data
     const targetDate = new Date(date);
-    const dayOfWeek = targetDate.toLocaleLowerCase('en-US', {
+    const dayOfWeek = targetDate.toLocaleDateString('en-US', {
       weekday: 'long',
-    }); // monday, tuesday, etc
+    }).toLowerCase(); // monday, tuesday, etc
 
     // Verificar se barbeiro trabalha neste dia
     const workingHours = barber.workingHours as any;

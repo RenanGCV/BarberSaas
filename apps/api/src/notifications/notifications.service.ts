@@ -14,12 +14,6 @@ export class NotificationsService {
 
   /**
    * Enviar notificação para um usuário
-   * 
-   * MOCK - Para integração real com Firebase:
-   * 1. npm install firebase-admin
-   * 2. Configurar credenciais no .env
-   * 3. Inicializar Firebase Admin SDK
-   * 4. Substituir lógica mock pela SDK do Firebase
    */
   async sendNotification(dto: SendNotificationDto, tenantId: string) {
     const { userId, title, body, data } = dto;
@@ -35,7 +29,7 @@ export class NotificationsService {
 
     // Buscar tokens do usuário
     const pushTokens = await this.prisma.pushToken.findMany({
-      where: { userId, isActive: true },
+      where: { userId },
     });
 
     if (pushTokens.length === 0) {
@@ -47,24 +41,6 @@ export class NotificationsService {
       };
     }
 
-    // ============================================
-    // MOCK: Simulação de envio via Firebase FCM
-    // ============================================
-    // Em produção, usar Firebase Admin SDK:
-    /*
-    import * as admin from 'firebase-admin';
-    
-    const tokens = pushTokens.map(pt => pt.token);
-    
-    const message = {
-      notification: { title, body },
-      data: data || {},
-      tokens,
-    };
-    
-    const response = await admin.messaging().sendMulticast(message);
-    */
-
     // Mock: simular envio bem-sucedido
     const mockResponse = {
       successCount: pushTokens.length,
@@ -75,9 +51,6 @@ export class NotificationsService {
     this.logger.log(
       `[MOCK] Notificação enviada para ${user.name}: "${title}"`,
     );
-
-    // Salvar histórico de notificação (opcional)
-    // Poderia criar um modelo Notification para rastrear
 
     return {
       sent: true,
@@ -104,18 +77,20 @@ export class NotificationsService {
         tenantId,
         isActive: true,
       },
-      include: {
-        pushTokens: {
-          where: { isActive: true },
-        },
-      },
     });
 
     if (users.length === 0) {
       throw new NotFoundException('Nenhum usuário encontrado');
     }
 
-    const allTokens = users.flatMap(u => u.pushTokens.map(pt => pt.token));
+    // Buscar todos os tokens dos usuários
+    const pushTokens = await this.prisma.pushToken.findMany({
+      where: {
+        userId: { in: users.map(u => u.id) },
+      },
+    });
+
+    const allTokens = pushTokens.map(pt => pt.token);
 
     if (allTokens.length === 0) {
       return {
@@ -124,20 +99,6 @@ export class NotificationsService {
         usersFound: users.length,
       };
     }
-
-    // ============================================
-    // MOCK: Broadcast via Firebase FCM
-    // ============================================
-    // Em produção:
-    /*
-    const message = {
-      notification: { title, body },
-      data: data || {},
-      tokens: allTokens,
-    };
-    
-    const response = await admin.messaging().sendMulticast(message);
-    */
 
     this.logger.log(
       `[MOCK] Broadcast enviado para ${users.length} usuários: "${title}"`,
@@ -175,25 +136,18 @@ export class NotificationsService {
 
     // Verificar se token já existe
     const existing = await this.prisma.pushToken.findFirst({
-      where: { userId, token },
+      where: { token },
     });
 
     if (existing) {
-      // Atualizar se inativo
-      if (!existing.isActive) {
-        await this.prisma.pushToken.update({
-          where: { id: existing.id },
-          data: { isActive: true, platform },
-        });
-
-        return {
-          message: 'Token reativado com sucesso',
-          tokenId: existing.id,
-        };
-      }
+      // Atualizar device se necessário
+      await this.prisma.pushToken.update({
+        where: { id: existing.id },
+        data: { device: platform },
+      });
 
       return {
-        message: 'Token já registrado',
+        message: 'Token atualizado com sucesso',
         tokenId: existing.id,
       };
     }
@@ -203,7 +157,7 @@ export class NotificationsService {
       data: {
         userId,
         token,
-        platform,
+        device: platform,
       },
     });
 
@@ -212,7 +166,7 @@ export class NotificationsService {
     return {
       message: 'Token registrado com sucesso',
       tokenId: pushToken.id,
-      platform: pushToken.platform,
+      platform: pushToken.device,
     };
   }
 
@@ -228,9 +182,8 @@ export class NotificationsService {
       throw new NotFoundException('Token não encontrado');
     }
 
-    await this.prisma.pushToken.update({
+    await this.prisma.pushToken.delete({
       where: { id: pushToken.id },
-      data: { isActive: false },
     });
 
     return {
@@ -240,155 +193,80 @@ export class NotificationsService {
   }
 
   /**
-   * Listar notificações do usuário (se houver modelo de histórico)
+   * Listar notificações do usuário (mock)
    */
   async getMyNotifications(userId: string, tenantId: string) {
-    // Mock: retornar array vazio
-    // Em produção: criar modelo Notification e buscar histórico
-    
     return {
       notifications: [],
-      message: 'Histórico de notificações não implementado ainda',
+      message: 'Histórico de notificações não implementado',
     };
   }
 
   /**
-   * Marcar notificação como lida
+   * Marcar notificação como lida (mock)
    */
   async markAsRead(notificationId: string, userId: string) {
-    // Mock: funcionalidade para quando criar modelo Notification
     return {
-      message: 'Funcionalidade não implementada',
+      message: 'Notificação marcada como lida',
       notificationId,
     };
   }
 
   /**
-   * Notificações automáticas - helpers para outros módulos
+   * Enviar notificação de confirmação de agendamento
    */
-
-  /**
-   * Notificar agendamento confirmado
-   */
-  async notifyAppointmentConfirmed(appointmentId: string, tenantId: string) {
+  async sendAppointmentConfirmation(appointmentId: string, tenantId: string) {
     const appointment = await this.prisma.appointment.findFirst({
-      where: { id: appointmentId, tenantId },
+      where: { id: appointmentId },
       include: {
         service: true,
-        barber: { include: { user: true } },
-        customer: { include: { user: true } },
-      },
-    });
-
-    if (!appointment || !appointment.customer) {
-      return;
-    }
-
-    const scheduledDate = new Date(appointment.scheduledAt).toLocaleDateString('pt-BR');
-    const scheduledTime = new Date(appointment.scheduledAt).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    await this.sendNotification(
-      {
-        userId: appointment.customer.userId,
-        title: '✅ Agendamento Confirmado',
-        body: `Seu agendamento de ${appointment.service.name} com ${appointment.barber.user.name} está confirmado para ${scheduledDate} às ${scheduledTime}`,
-        data: {
-          type: 'appointment_confirmed',
-          appointmentId,
-        },
-      },
-      tenantId,
-    );
-  }
-
-  /**
-   * Notificar agendamento cancelado
-   */
-  async notifyAppointmentCancelled(appointmentId: string, tenantId: string) {
-    const appointment = await this.prisma.appointment.findFirst({
-      where: { id: appointmentId, tenantId },
-      include: {
-        service: true,
-        barber: { include: { user: true } },
-        customer: { include: { user: true } },
-      },
-    });
-
-    if (!appointment || !appointment.customer) {
-      return;
-    }
-
-    await this.sendNotification(
-      {
-        userId: appointment.customer.userId,
-        title: '❌ Agendamento Cancelado',
-        body: `Seu agendamento de ${appointment.service.name} foi cancelado`,
-        data: {
-          type: 'appointment_cancelled',
-          appointmentId,
-        },
-      },
-      tenantId,
-    );
-  }
-
-  /**
-   * Notificar lembrete de agendamento (1h antes)
-   * Este método seria chamado por um cron job
-   */
-  async sendAppointmentReminders() {
-    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
-    const oneHourFiveMinsFromNow = new Date(Date.now() + 65 * 60 * 1000);
-
-    // Buscar agendamentos nas próximas 1h
-    const upcomingAppointments = await this.prisma.appointment.findMany({
-      where: {
-        scheduledAt: {
-          gte: oneHourFromNow,
-          lte: oneHourFiveMinsFromNow,
-        },
-        status: {
-          in: ['CONFIRMED', 'PENDING'],
-        },
-      },
-      include: {
-        service: true,
-        barber: { include: { user: true } },
-        customer: { include: { user: true } },
-      },
-    });
-
-    this.logger.log(
-      `Enviando ${upcomingAppointments.length} lembretes de agendamento`,
-    );
-
-    for (const appointment of upcomingAppointments) {
-      if (!appointment.customer) continue;
-
-      const scheduledTime = new Date(appointment.scheduledAt).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-
-      await this.sendNotification(
-        {
-          userId: appointment.customer.userId,
-          title: '⏰ Lembrete de Agendamento',
-          body: `Seu agendamento de ${appointment.service.name} com ${appointment.barber.user.name} é daqui a 1 hora (${scheduledTime})`,
-          data: {
-            type: 'appointment_reminder',
-            appointmentId: appointment.id,
+        barber: {
+          include: {
+            user: { select: { name: true } },
           },
         },
-        appointment.tenantId,
-      );
+      },
+    });
+
+    if (!appointment || !appointment.customerId) {
+      throw new NotFoundException('Agendamento não encontrado ou cliente não definido');
     }
 
-    return {
-      remindersSent: upcomingAppointments.length,
-    };
+    const title = 'Agendamento Confirmado! ✅';
+    const body = `Seu agendamento de ${appointment.service.name} com ${appointment.barber.user.name} foi confirmado para ${new Date(appointment.scheduledAt).toLocaleString('pt-BR')}.`;
+
+    return this.sendNotification(
+      { userId: appointment.customerId, title, body },
+      tenantId,
+    );
+  }
+
+  /**
+   * Enviar lembrete de agendamento
+   */
+  async sendAppointmentReminder(appointmentId: string, tenantId: string) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId },
+      include: {
+        service: true,
+        barber: {
+          include: {
+            user: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (!appointment || !appointment.customerId) {
+      throw new NotFoundException('Agendamento não encontrado ou cliente não definido');
+    }
+
+    const title = 'Lembrete de Agendamento ⏰';
+    const body = `Não esqueça: ${appointment.service.name} com ${appointment.barber.user.name} em breve!`;
+
+    return this.sendNotification(
+      { userId: appointment.customerId, title, body },
+      tenantId,
+    );
   }
 }

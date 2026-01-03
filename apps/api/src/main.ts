@@ -2,6 +2,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
+import Tokens = require('csrf');
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -9,6 +11,38 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
+  
+  // Cookie Parser (necessário para CSRF)
+  app.use(cookieParser());
+  
+  // CSRF Protection (apenas em produção)
+  if (process.env.NODE_ENV === 'production') {
+    const tokens = new Tokens();
+    const secret = process.env.CSRF_SECRET || tokens.secretSync();
+    
+    app.use((req: any, res: any, next: any) => {
+      // Pular CSRF para rotas públicas
+      const publicRoutes = ['/auth/login', '/auth/register', '/health'];
+      if (publicRoutes.some(route => req.path.startsWith(route))) {
+        return next();
+      }
+      
+      // Gerar e validar token CSRF
+      if (!req.cookies['XSRF-TOKEN']) {
+        const token = tokens.create(secret);
+        res.cookie('XSRF-TOKEN', token, { httpOnly: false, sameSite: 'strict' });
+      }
+      
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+        const token = req.headers['x-xsrf-token'] || req.body._csrf;
+        if (!tokens.verify(secret, token)) {
+          return res.status(403).json({ message: 'Token CSRF inválido' });
+        }
+      }
+      
+      next();
+    });
+  }
   
   // CORS Configuration
   const allowedOrigins = [

@@ -72,14 +72,35 @@ export class AuthService {
       this.config.get<number>('BCRYPT_ROUNDS') || 10,
     );
 
-    // Criar usuário
+    // Buscar ou criar tenant se fornecido
+    let tenantId = registerDto.tenantId;
+    
+    // Auto-detect OWNER role: primeiro usuário de um tenant recebe role OWNER
+    let role: 'CUSTOMER' | 'BARBER' | 'ADMIN' | 'OWNER' = 'CUSTOMER';
+    
+    if (tenantId) {
+      // Verificar se é o primeiro usuário deste tenant
+      const userCount = await this.prisma.user.count({
+        where: { tenantId },
+      });
+      
+      if (userCount === 0) {
+        role = 'OWNER';
+        this.prisma.$extends({
+          name: 'auto-owner-detection',
+        });
+      }
+    }
+
+    // Criar usuário com role detectado automaticamente
     const user = await this.prisma.user.create({
       data: {
         email: registerDto.email,
         password: hashedPassword,
         name: registerDto.name,
         phone: registerDto.phone,
-        role: 'CUSTOMER',
+        role,
+        tenantId,
       },
     });
 

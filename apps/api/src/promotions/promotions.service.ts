@@ -1,16 +1,13 @@
 import {
     BadRequestException,
-    ConflictException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-    CreateCouponDto,
     CreatePromotionDto,
     DiscountType,
     UpdatePromotionDto,
-    ValidateCouponDto,
 } from './dto';
 
 @Injectable()
@@ -21,7 +18,7 @@ export class PromotionsService {
    * Criar nova promoção
    */
   async create(dto: CreatePromotionDto, tenantId: string) {
-    const { serviceIds, startDate, endDate, ...data } = dto;
+    const { startDate, endDate, discountType, discountValue, name, description, maxUses, isActive } = dto;
 
     // Validar datas
     const start = new Date(startDate);
@@ -34,44 +31,29 @@ export class PromotionsService {
     }
 
     // Validar desconto FIXED_AMOUNT
-    if (data.discountType === DiscountType.FIXED_AMOUNT && dto.discountValue > 10000) {
+    if (discountType === DiscountType.FIXED_AMOUNT && discountValue > 10000) {
       throw new BadRequestException(
         'Desconto fixo não pode exceder R$ 10.000,00',
       );
     }
 
-    // Validar serviços (se fornecidos)
-    if (serviceIds && serviceIds.length > 0) {
-      const services = await this.prisma.service.count({
-        where: {
-          id: { in: serviceIds },
-          tenantId,
-          isActive: true,
-        },
-      });
+    // Gerar código único para a promoção
+    const code = await this.generateUniqueCode(name, tenantId);
 
-      if (services !== serviceIds.length) {
-        throw new NotFoundException('Um ou mais serviços não encontrados');
-      }
-    }
-
-    // Criar promoção
+    // Criar promoção usando o schema atual
     const promotion = await this.prisma.promotion.create({
       data: {
-        ...data,
+        code,
+        name,
+        description,
+        type: this.mapDiscountTypeToPromotionType(discountType),
+        value: discountValue,
         startDate: start,
         endDate: end,
-        tenantId,
+        maxUses,
         currentUses: 0,
-        services: serviceIds
-          ? {
-              connect: serviceIds.map(id => ({ id })),
-            }
-          : undefined,
-      },
-      include: {
-        services: true,
-        coupons: true,
+        isActive: isActive ?? true,
+        tenantId,
       },
     });
 
@@ -96,16 +78,6 @@ export class PromotionsService {
           endDate: { gte: now },
         }),
       },
-      include: {
-        services: true,
-        coupons: true,
-        _count: {
-          select: {
-            services: true,
-            coupons: true,
-          },
-        },
-      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -125,10 +97,6 @@ export class PromotionsService {
   async findOne(id: string, tenantId: string) {
     const promotion = await this.prisma.promotion.findFirst({
       where: { id, tenantId },
-      include: {
-        services: true,
-        coupons: true,
-      },
     });
 
     if (!promotion) {
@@ -156,7 +124,7 @@ export class PromotionsService {
       throw new NotFoundException('Promoção não encontrada');
     }
 
-    const { serviceIds, startDate, endDate, ...data } = dto;
+    const { startDate, endDate, discountType, discountValue, name, description, maxUses, isActive } = dto;
 
     // Validar datas se fornecidas
     if (startDate && endDate) {
@@ -174,19 +142,14 @@ export class PromotionsService {
     const updated = await this.prisma.promotion.update({
       where: { id },
       data: {
-        ...data,
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+        ...(discountType && { type: this.mapDiscountTypeToPromotionType(discountType) }),
+        ...(discountValue !== undefined && { value: discountValue }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
-        ...(serviceIds && {
-          services: {
-            set: [],
-            connect: serviceIds.map(sid => ({ id: sid })),
-          },
-        }),
-      },
-      include: {
-        services: true,
-        coupons: true,
+        ...(maxUses !== undefined && { maxUses }),
+        ...(isActive !== undefined && { isActive }),
       },
     });
 
@@ -208,17 +171,6 @@ export class PromotionsService {
       throw new NotFoundException('Promoção não encontrada');
     }
 
-    // Verificar se há cupons vinculados
-    const couponsCount = await this.prisma.coupon.count({
-      where: { promotionId: id },
-    });
-
-    if (couponsCount > 0) {
-      throw new ConflictException(
-        'Não é possível deletar promoção com cupons vinculados',
-      );
-    }
-
     await this.prisma.promotion.delete({ where: { id } });
 
     return {
@@ -227,97 +179,24 @@ export class PromotionsService {
   }
 
   /**
-   * ========================================
-   * CUPONS
-   * ========================================
+   * Validar código de promoção
    */
-
-  /**
-   * Criar cupom para promoção
-   */
-  async createCoupon(dto: CreateCouponDto, tenantId: string) {
-    const { code, promotionId } = dto;
-
-    // Validar promoção
+  async validateCode(code: string, tenantId: string) {
     const promotion = await this.prisma.promotion.findFirst({
-      where: { id: promotionId, tenantId },
+      where: {
+        code: code.toUpperCase(),
+        tenantId,
+      },
     });
 
     if (!promotion) {
-      throw new NotFoundException('Promoção não encontrada');
-    }
-
-    // Verificar se cupom já existe
-    const existing = await this.prisma.coupon.findFirst({
-      where: {
-        code: code.toUpperCase(),
-        promotion: { tenantId },
-      },
-    });
-
-    if (existing) {
-      throw new ConflictException('Cupom já existe');
-    }
-
-    // Criar cupom
-    const coupon = await this.prisma.coupon.create({
-      data: {
-        code: code.toUpperCase(),
-        promotionId,
-        isActive: true,
-        usageCount: 0,
-      },
-      include: {
-        promotion: {
-          include: {
-            services: true,
-          },
-        },
-      },
-    });
-
-    return {
-      message: 'Cupom criado com sucesso',
-      coupon,
-    };
-  }
-
-  /**
-   * Validar cupom
-   */
-  async validateCoupon(dto: ValidateCouponDto, tenantId: string) {
-    const { code, serviceId } = dto;
-
-    // Buscar cupom
-    const coupon = await this.prisma.coupon.findFirst({
-      where: {
-        code: code.toUpperCase(),
-        promotion: { tenantId },
-      },
-      include: {
-        promotion: {
-          include: {
-            services: true,
-          },
-        },
-      },
-    });
-
-    if (!coupon) {
       return {
         valid: false,
-        message: 'Cupom não encontrado',
+        message: 'Código de promoção não encontrado',
       };
     }
 
-    if (!coupon.isActive) {
-      return {
-        valid: false,
-        message: 'Cupom desativado',
-      };
-    }
-
-    if (!coupon.promotion.isActive) {
+    if (!promotion.isActive) {
       return {
         valid: false,
         message: 'Promoção desativada',
@@ -326,141 +205,64 @@ export class PromotionsService {
 
     // Validar período
     const now = new Date();
-    if (now < coupon.promotion.startDate || now > coupon.promotion.endDate) {
+    if (now < promotion.startDate || now > promotion.endDate) {
       return {
         valid: false,
-        message: 'Cupom fora do período de validade',
+        message: 'Promoção fora do período de validade',
       };
     }
 
     // Validar limite de uso
-    if (
-      coupon.promotion.maxUses &&
-      coupon.promotion.currentUses >= coupon.promotion.maxUses
-    ) {
+    if (promotion.maxUses && promotion.currentUses >= promotion.maxUses) {
       return {
         valid: false,
-        message: 'Cupom esgotado',
+        message: 'Promoção esgotada',
       };
-    }
-
-    // Validar serviço específico
-    if (serviceId && coupon.promotion.services.length > 0) {
-      const isServiceIncluded = coupon.promotion.services.some(
-        s => s.id === serviceId,
-      );
-
-      if (!isServiceIncluded) {
-        return {
-          valid: false,
-          message: 'Cupom não válido para este serviço',
-        };
-      }
     }
 
     return {
       valid: true,
-      message: 'Cupom válido',
-      coupon: {
-        code: coupon.code,
-        discountType: coupon.promotion.discountType,
-        discountValue: coupon.promotion.discountValue,
-        promotionName: coupon.promotion.name,
+      message: 'Promoção válida',
+      promotion: {
+        code: promotion.code,
+        name: promotion.name,
+        type: promotion.type,
+        value: promotion.value,
       },
     };
   }
 
   /**
-   * Aplicar cupom (incrementar uso)
+   * Aplicar promoção (incrementar uso)
    */
-  async applyCoupon(code: string, tenantId: string) {
-    const coupon = await this.prisma.coupon.findFirst({
-      where: {
-        code: code.toUpperCase(),
-        promotion: { tenantId },
-      },
-      include: {
-        promotion: true,
-      },
-    });
+  async applyPromotion(code: string, tenantId: string) {
+    const validation = await this.validateCode(code, tenantId);
 
-    if (!coupon) {
-      throw new NotFoundException('Cupom não encontrado');
+    if (!validation.valid) {
+      throw new BadRequestException(validation.message);
     }
 
-    // Incrementar uso
-    await this.prisma.$transaction([
-      this.prisma.coupon.update({
-        where: { id: coupon.id },
-        data: { usageCount: { increment: 1 } },
-      }),
-      this.prisma.promotion.update({
-        where: { id: coupon.promotionId },
-        data: { currentUses: { increment: 1 } },
-      }),
-    ]);
-
-    return {
-      message: 'Cupom aplicado com sucesso',
-      discountType: coupon.promotion.discountType,
-      discountValue: coupon.promotion.discountValue,
-    };
-  }
-
-  /**
-   * Listar cupons de uma promoção
-   */
-  async getCoupons(promotionId: string, tenantId: string) {
     const promotion = await this.prisma.promotion.findFirst({
-      where: { id: promotionId, tenantId },
+      where: {
+        code: code.toUpperCase(),
+        tenantId,
+      },
     });
 
     if (!promotion) {
       throw new NotFoundException('Promoção não encontrada');
     }
 
-    const coupons = await this.prisma.coupon.findMany({
-      where: { promotionId },
-      include: {
-        promotion: {
-          select: {
-            name: true,
-            discountType: true,
-            discountValue: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+    // Incrementar uso
+    await this.prisma.promotion.update({
+      where: { id: promotion.id },
+      data: { currentUses: { increment: 1 } },
     });
 
     return {
-      total: coupons.length,
-      coupons,
-    };
-  }
-
-  /**
-   * Desativar cupom
-   */
-  async deactivateCoupon(couponId: string, tenantId: string) {
-    const coupon = await this.prisma.coupon.findFirst({
-      where: {
-        id: couponId,
-        promotion: { tenantId },
-      },
-    });
-
-    if (!coupon) {
-      throw new NotFoundException('Cupom não encontrado');
-    }
-
-    await this.prisma.coupon.update({
-      where: { id: couponId },
-      data: { isActive: false },
-    });
-
-    return {
-      message: 'Cupom desativado com sucesso',
+      message: 'Promoção aplicada com sucesso',
+      type: promotion.type,
+      value: promotion.value,
     };
   }
 
@@ -478,6 +280,47 @@ export class PromotionsService {
   }
 
   /**
+   * Helper: Mapear DiscountType para PromotionType do schema
+   */
+  private mapDiscountTypeToPromotionType(discountType: DiscountType): 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SERVICE' {
+    switch (discountType) {
+      case DiscountType.PERCENTAGE:
+        return 'PERCENTAGE';
+      case DiscountType.FIXED_AMOUNT:
+        return 'FIXED_AMOUNT';
+      case DiscountType.FREE_SERVICE:
+        return 'FREE_SERVICE';
+      default:
+        return 'PERCENTAGE';
+    }
+  }
+
+  /**
+   * Helper: Gerar código único para promoção
+   */
+  private async generateUniqueCode(name: string, tenantId: string): Promise<string> {
+    const baseCode = name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .substring(0, 6);
+    
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    let code = `${baseCode}${randomSuffix}`;
+
+    // Verificar se código já existe
+    const existing = await this.prisma.promotion.findFirst({
+      where: { code, tenantId },
+    });
+
+    if (existing) {
+      // Gerar novo código
+      return this.generateUniqueCode(name + Date.now(), tenantId);
+    }
+
+    return code;
+  }
+
+  /**
    * Calcular desconto de uma promoção
    */
   calculateDiscount(
@@ -486,11 +329,11 @@ export class PromotionsService {
     discountValue: number,
   ): number {
     switch (discountType) {
-      case DiscountType.PERCENTAGE:
+      case 'PERCENTAGE':
         return originalPrice * (discountValue / 100);
-      case DiscountType.FIXED_AMOUNT:
+      case 'FIXED_AMOUNT':
         return Math.min(discountValue, originalPrice);
-      case DiscountType.FREE_SERVICE:
+      case 'FREE_SERVICE':
         return originalPrice;
       default:
         return 0;
