@@ -44,26 +44,27 @@ async function bootstrap() {
     });
   }
   
-  // CORS Configuration - aceita qualquer subdomínio do Vercel
+  // CORS Configuration - aceita qualquer subdomínio do Vercel/Railway
   const corsOriginHandler = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Permitir requests sem origin (mobile apps, curl, etc)
     if (!origin) {
       return callback(null, true);
     }
 
-    // Lista de origens permitidas
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://barbearia-estilo-silk.vercel.app',
-    ];
+    // Lista de origens permitidas (via variável de ambiente)
+    const allowedOrigins: string[] = [];
+
+    // Em desenvolvimento, permitir localhost
+    if (process.env.NODE_ENV !== 'production') {
+      allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+    }
 
     // Adicionar origens da variável de ambiente
     if (process.env.CORS_ORIGIN) {
       process.env.CORS_ORIGIN.split(',').forEach(o => allowedOrigins.push(o.trim()));
     }
 
-    // Verificar se a origem está na lista ou é um domínio Vercel
+    // Verificar se a origem está na lista ou é um domínio Vercel/Railway
     const isAllowed = allowedOrigins.includes(origin) || 
                       origin.endsWith('.vercel.app') ||
                       origin.endsWith('.railway.app');
@@ -71,12 +72,9 @@ async function bootstrap() {
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   };
-
-  console.log('CORS configured with dynamic origin checking');
 
   app.enableCors({
     origin: corsOriginHandler,

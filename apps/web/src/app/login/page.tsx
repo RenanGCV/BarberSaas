@@ -58,11 +58,6 @@ export default function LoginPage() {
         }
       }, 120);
     } catch (error: any) {
-      console.error('❌ Erro completo:', error);
-      console.error('📍 URL chamada:', error.config?.url);
-      console.error('🔗 Base URL:', error.config?.baseURL);
-      console.error('📊 Status:', error.response?.status);
-      console.error('💬 Mensagem:', error.response?.data);
       toast.error(error.response?.data?.message || 'Erro ao fazer login');
     } finally {
       setIsLoading(false);
@@ -104,7 +99,6 @@ export default function LoginPage() {
         handleSubmit(e);
       }, 500);
     } catch (error: any) {
-      console.error('❌ Erro ao registrar:', error);
       toast.error(error.response?.data?.message || 'Erro ao criar conta');
     } finally {
       setIsLoading(false);
@@ -267,14 +261,7 @@ export default function LoginPage() {
             </form>
           )}
 
-          {!showRegister && (
-            <div className="mt-6 text-center text-sm text-text-secondary">
-              <p>Credenciais de teste:</p>
-              <p className="mt-2 font-mono text-xs">
-                owner@barbearia.com / 123456
-              </p>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

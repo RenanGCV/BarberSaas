@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['localhost', 'storage.googleapis.com'],
+    domains: ['storage.googleapis.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -12,7 +12,7 @@ const nextConfig = {
     ],
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333/api',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
   eslint: {
     ignoreDuringBuilds: true,

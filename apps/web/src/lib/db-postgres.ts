@@ -4,36 +4,27 @@
 
 import { API_URL } from './api';
 
-// Tipo para consultas SQL mock
+// Tipo para consultas SQL
 type SqlQuery = {
   text: string;
   values?: any[];
 };
 
-// Função mock que redireciona para API
+// Função stub que redireciona para API
 export const sql = async <T = any>(
   strings: TemplateStringsArray,
   ...values: any[]
 ): Promise<{ rows: T[] }> => {
-  console.warn(
-    'Direct database access is deprecated. Use the API instead at:',
-    API_URL
-  );
-  
-  // Retorna array vazio - todas as operações devem usar a API REST
+  // Todas as operações devem usar a API REST
   return { rows: [] };
 };
 
-// Query mock
+// Query stub
 export const query = async <T = any>(
   text: string,
   values?: any[]
 ): Promise<{ rows: T[] }> => {
-  console.warn(
-    'Direct database access is deprecated. Use the API instead at:',
-    API_URL
-  );
-  
+  // Todas as operações devem usar a API REST
   return { rows: [] };
 };
 
