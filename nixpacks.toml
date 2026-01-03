@@ -1,17 +1,13 @@
-# Configuração Nixpacks para Railway
-# Build apenas a API do BarberSaas
+# Configuração Nixpacks para Railway - BarberSaas API
 
 [phases.setup]
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = ["npm ci --legacy-peer-deps"]
 
 [phases.build]
 cmds = ["cd apps/api && npm install && npx prisma generate && npm run build"]
 
 [start]
 cmd = "cd apps/api && npx prisma migrate deploy && node dist/src/main"
-
-[variables]
-NODE_ENV = "production"
