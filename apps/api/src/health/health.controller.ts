@@ -104,7 +104,7 @@ export class HealthController {
           userId: barberUser.id,
           tenantId: tenant.id,
           specialties: ['Corte', 'Barba'],
-          commission: 50,
+          commissionRate: 0.5,
           isActive: true,
         },
       });
