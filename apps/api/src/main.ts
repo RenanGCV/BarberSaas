@@ -117,10 +117,14 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT || 3333;
-  await app.listen(port);
+  
+  // IMPORTANTE: Em produção (Railway/Docker), precisa ouvir em 0.0.0.0
+  // para aceitar conexões externas
+  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+  await app.listen(port, host);
 
-  console.log(`\n🚀 BarberSaas API rodando em: http://localhost:${port}`);
-  console.log(`📚 Documentação Swagger: http://localhost:${port}/api/docs\n`);
+  console.log(`\n🚀 BarberSaas API rodando em: http://${host}:${port}`);
+  console.log(`📚 Documentação Swagger: http://${host}:${port}/api/docs\n`);
 }
 
 bootstrap();
