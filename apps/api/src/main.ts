@@ -45,24 +45,28 @@ async function bootstrap() {
   }
   
   // CORS Configuration
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.WEB_URL,
-    process.env.MOBILE_URL,
-  ].filter(Boolean);
+  const corsOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+    : [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://barbearia-estilo-silk.vercel.app',
+      ];
 
-  // Em produção, não permitir localhost
-  const isProduction = process.env.NODE_ENV === 'production';
-  const corsOrigins = isProduction 
-    ? allowedOrigins.filter(origin => !origin.includes('localhost'))
-    : allowedOrigins;
+  // Em desenvolvimento, adicionar localhost
+  if (process.env.NODE_ENV !== 'production') {
+    if (!corsOrigins.includes('http://localhost:3000')) {
+      corsOrigins.push('http://localhost:3000');
+    }
+  }
+
+  console.log('CORS Origins:', corsOrigins);
 
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-XSRF-TOKEN'],
   });
 
   // Validation
