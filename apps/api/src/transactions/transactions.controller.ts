@@ -28,7 +28,13 @@ export class TransactionsController {
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 401, description: 'Não autenticado' })
   create(@Body() createTransactionDto: CreateTransactionDto, @CurrentUser() user) {
-    return this.transactionsService.create(createTransactionDto, user.tenantId);
+    // Preencher automaticamente o criador e descrição padrão
+    const dto = {
+      ...createTransactionDto,
+      createdBy: createTransactionDto.createdBy || user.userId,
+      description: createTransactionDto.description || `${createTransactionDto.type === 'INCOME' ? 'Receita' : 'Despesa'} - ${createTransactionDto.category}`,
+    };
+    return this.transactionsService.create(dto, user.tenantId);
   }
 
   @Get()

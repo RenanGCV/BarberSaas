@@ -32,17 +32,17 @@ export class CreateTransactionDto {
   @Min(0, { message: 'O valor não pode ser negativo' })
   amount: number;
 
-  @ApiProperty({ example: 'Corte de cabelo - Cliente João' })
+  @ApiProperty({ example: 'Corte de cabelo - Cliente João', required: false })
   @IsString({ message: 'A descrição deve ser um texto válido' })
   @MaxLength(500, { message: 'A descrição deve ter no máximo 500 caracteres' })
   @Transform(({ value }) => value?.trim())
-  @IsNotEmpty({ message: 'A descrição é obrigatória' })
-  description: string;
+  @IsOptional()
+  description?: string;
 
-  @ApiProperty({ example: 'user-id-123' })
+  @ApiProperty({ example: 'user-id-123', required: false, description: 'Preenchido automaticamente com o usuário logado' })
   @IsString({ message: 'O ID do criador deve ser um texto válido' })
-  @IsNotEmpty({ message: 'O criador da transação é obrigatório' })
-  createdBy: string;
+  @IsOptional()
+  createdBy?: string;
 
   @ApiProperty({ example: 'appointment-id-123', required: false })
   @IsString({ message: 'O ID do agendamento deve ser um texto válido' })
