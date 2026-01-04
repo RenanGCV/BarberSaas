@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
 
 export enum TransactionType {
   INCOME = 'INCOME',
@@ -33,15 +33,15 @@ export class CreateTransactionDto {
   amount: number;
 
   @ApiProperty({ example: 'Corte de cabelo - Cliente João', required: false })
+  @IsOptional()
   @IsString({ message: 'A descrição deve ser um texto válido' })
   @MaxLength(500, { message: 'A descrição deve ter no máximo 500 caracteres' })
   @Transform(({ value }) => value?.trim())
-  @IsOptional()
   description?: string;
 
   @ApiProperty({ example: 'user-id-123', required: false, description: 'Preenchido automaticamente com o usuário logado' })
-  @IsString({ message: 'O ID do criador deve ser um texto válido' })
   @IsOptional()
+  @IsString({ message: 'O ID do criador deve ser um texto válido' })
   createdBy?: string;
 
   @ApiProperty({ example: 'appointment-id-123', required: false })
