@@ -43,6 +43,9 @@ export default function NewStaffPage() {
   const [startTime, setStartTime] = useState({ hours: 9, minutes: 0 });
   const [endTime, setEndTime] = useState({ hours: 18, minutes: 0 });
   const [workDays, setWorkDays] = useState<string[]>(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta']);
+  const [hasLunch, setHasLunch] = useState(true);
+  const [lunchStart, setLunchStart] = useState({ hours: 12, minutes: 0 });
+  const [lunchEnd, setLunchEnd] = useState({ hours: 13, minutes: 0 });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -61,7 +64,12 @@ export default function NewStaffPage() {
       }
 
       // 2. Criar o barbeiro vinculado ao usuário
-      const workingHours = `${workDays.join(', ')}: ${String(startTime.hours).padStart(2, '0')}:${String(startTime.minutes).padStart(2, '0')}-${String(endTime.hours).padStart(2, '0')}:${String(endTime.minutes).padStart(2, '0')}`;
+      let workingHours = `${workDays.join(', ')}: ${String(startTime.hours).padStart(2, '0')}:${String(startTime.minutes).padStart(2, '0')}-${String(endTime.hours).padStart(2, '0')}:${String(endTime.minutes).padStart(2, '0')}`;
+      
+      // Adicionar horário de almoço se habilitado
+      if (hasLunch) {
+        workingHours += ` (Almoço: ${String(lunchStart.hours).padStart(2, '0')}:${String(lunchStart.minutes).padStart(2, '0')}-${String(lunchEnd.hours).padStart(2, '0')}:${String(lunchEnd.minutes).padStart(2, '0')})`;
+      }
       
       await api.post('/barbers', {
         userId,
@@ -205,6 +213,45 @@ export default function NewStaffPage() {
               </div>
             </div>
 
+            {/* Horário de Almoço */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🍽️</span>
+                  <div>
+                    <p className="font-medium text-text-primary">Horário de Almoço</p>
+                    <p className="text-sm text-text-secondary">Bloquear horário para intervalo</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHasLunch(!hasLunch)}
+                  className={`relative w-14 h-8 rounded-full transition-colors ${
+                    hasLunch ? 'bg-primary' : 'bg-secondary'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                      hasLunch ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {hasLunch && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+                  <div className="bg-secondary/30 rounded-xl p-4">
+                    <p className="text-sm text-text-secondary mb-3 text-center">🕐 Início do Almoço</p>
+                    <TimeClockPicker stepMinutes={15} value={lunchStart} onChange={setLunchStart} size={200} />
+                  </div>
+                  <div className="bg-secondary/30 rounded-xl p-4">
+                    <p className="text-sm text-text-secondary mb-3 text-center">🕐 Fim do Almoço</p>
+                    <TimeClockPicker stepMinutes={15} value={lunchEnd} onChange={setLunchEnd} size={200} />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Resumo */}
             <div className="p-4 bg-primary/10 rounded-xl border border-primary/20">
               <p className="text-sm">
@@ -212,6 +259,12 @@ export default function NewStaffPage() {
                 {workDays.length > 0 ? workDays.join(', ') : 'Nenhum dia selecionado'} •{' '}
                 {String(startTime.hours).padStart(2, '0')}:{String(startTime.minutes).padStart(2, '0')} às{' '}
                 {String(endTime.hours).padStart(2, '0')}:{String(endTime.minutes).padStart(2, '0')}
+                {hasLunch && (
+                  <span className="text-text-secondary">
+                    {' '}• Almoço: {String(lunchStart.hours).padStart(2, '0')}:{String(lunchStart.minutes).padStart(2, '0')}-
+                    {String(lunchEnd.hours).padStart(2, '0')}:{String(lunchEnd.minutes).padStart(2, '0')}
+                  </span>
+                )}
               </p>
             </div>
           </div>
