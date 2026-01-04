@@ -68,8 +68,13 @@ export function ButtonSelect<T extends string | number>({
 // ============================================
 // CHIP SELECT - Chips de seleção múltipla
 // ============================================
+interface ChipOption {
+  value: string;
+  label: string;
+}
+
 interface ChipSelectProps {
-  options: string[];
+  options: (string | ChipOption)[];
   selected: string[];
   onChange: (selected: string[]) => void;
   allowCustom?: boolean;
@@ -83,30 +88,35 @@ export function ChipSelect({
   allowCustom = false,
   customPlaceholder = 'Adicionar personalizado...',
 }: ChipSelectProps) {
-  const toggle = (option: string) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter((s) => s !== option));
+  // Normaliza options para sempre ter {value, label}
+  const normalizedOptions: ChipOption[] = options.map((opt) =>
+    typeof opt === 'string' ? { value: opt, label: opt } : opt
+  );
+
+  const toggle = (value: string) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((s) => s !== value));
     } else {
-      onChange([...selected, option]);
+      onChange([...selected, value]);
     }
   };
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        {options.map((option) => (
+        {normalizedOptions.map((option) => (
           <button
-            key={option}
+            key={option.value}
             type="button"
-            onClick={() => toggle(option)}
+            onClick={() => toggle(option.value)}
             className={`px-4 py-2 rounded-full border-2 transition-all duration-200 text-sm font-medium ${
-              selected.includes(option)
+              selected.includes(option.value)
                 ? 'border-primary bg-primary text-background'
                 : 'border-secondary hover:border-primary/50 bg-surface'
             }`}
           >
-            {selected.includes(option) && <span className="mr-1">✓</span>}
-            {option}
+            {selected.includes(option.value) && <span className="mr-1">✓</span>}
+            {option.label}
           </button>
         ))}
       </div>
