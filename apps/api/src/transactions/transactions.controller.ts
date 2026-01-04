@@ -33,8 +33,8 @@ export class TransactionsController {
       ...createTransactionDto,
       createdBy: createTransactionDto.createdBy || user.id,
       description: createTransactionDto.description || `${createTransactionDto.type === 'INCOME' ? 'Receita' : 'Despesa'} - ${createTransactionDto.category}`,
-    };
-    return this.transactionsService.create(dto, user.tenantId);
+    } as const;
+    return this.transactionsService.create(dto as any, user.tenantId);
   }
 
   @Get()

@@ -2,14 +2,26 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto, TransactionFiltersDto, UpdateTransactionDto } from './dto';
 
+// Tipo para dados completos de transação (após preenchimento no controller)
+interface TransactionCreateData extends Omit<CreateTransactionDto, 'createdBy' | 'description'> {
+  createdBy: string;
+  description: string;
+}
+
 @Injectable()
 export class TransactionsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createTransactionDto: CreateTransactionDto, tenantId: string) {
+  async create(createTransactionDto: TransactionCreateData, tenantId: string) {
     const transaction = await this.prisma.transaction.create({
       data: {
-        ...createTransactionDto,
+        type: createTransactionDto.type,
+        category: createTransactionDto.category,
+        amount: createTransactionDto.amount,
+        description: createTransactionDto.description,
+        createdBy: createTransactionDto.createdBy,
+        paymentMethod: createTransactionDto.paymentMethod,
+        appointmentId: createTransactionDto.appointmentId,
         tenantId,
       },
       include: {
