@@ -1,11 +1,33 @@
 'use client';
 
 import TimeClockPicker from '@/components/TimeClockPicker';
+import { ButtonSelect, ChipSelect, PageHeader, PercentageInput, Section } from '@/components/ui';
 import api from '@/lib/api';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+
+const SPECIALTIES = [
+  { value: 'Corte Clássico', label: '✂️ Corte Clássico' },
+  { value: 'Corte Moderno', label: '💇 Corte Moderno' },
+  { value: 'Degradê', label: '📐 Degradê' },
+  { value: 'Barba', label: '🧔 Barba' },
+  { value: 'Sobrancelha', label: '👁️ Sobrancelha' },
+  { value: 'Relaxamento', label: '💆 Relaxamento' },
+  { value: 'Coloração', label: '🎨 Coloração' },
+  { value: 'Platinado', label: '⭐ Platinado' },
+];
+
+const WORK_DAYS = [
+  { value: 'Domingo', label: 'Dom' },
+  { value: 'Segunda', label: 'Seg' },
+  { value: 'Terça', label: 'Ter' },
+  { value: 'Quarta', label: 'Qua' },
+  { value: 'Quinta', label: 'Qui' },
+  { value: 'Sexta', label: 'Sex' },
+  { value: 'Sábado', label: 'Sáb' },
+];
 
 export default function NewStaffPage() {
   const router = useRouter();
@@ -15,7 +37,7 @@ export default function NewStaffPage() {
     phone: '',
     password: '',
     commission: 50,
-    specialties: '' as any,
+    specialties: [] as string[],
   });
 
   const [startTime, setStartTime] = useState({ hours: 9, minutes: 0 });
@@ -44,11 +66,7 @@ export default function NewStaffPage() {
       await api.post('/barbers', {
         userId,
         commission: Number(form.commission) || 0,
-        specialties: (form.specialties || '')
-          .toString()
-          .split(',')
-          .map((s: string) => s.trim())
-          .filter(Boolean),
+        specialties: form.specialties,
         workingHours,
       });
     },
@@ -59,15 +77,22 @@ export default function NewStaffPage() {
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Erro ao criar colaborador'),
   });
 
+  const isValid = form.name && form.email && form.phone && form.password && form.password.length >= 6;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Novo Colaborador</h1>
-        <a href="/dashboard/admin/staff" className="btn btn-secondary">Voltar</a>
-      </div>
-      <div className="card space-y-4">
-        <div>
-          <h3 className="font-semibold text-primary mb-4">Dados do Colaborador</h3>
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        title="Novo Colaborador"
+        description="Cadastre um novo profissional na equipe"
+        backHref="/dashboard/admin/staff"
+      />
+
+      <div className="card space-y-8">
+        {/* Dados Pessoais */}
+        <Section 
+          title="👤 Dados do Colaborador" 
+          description="Informações básicas para criar a conta"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Nome completo *</label>
@@ -108,126 +133,105 @@ export default function NewStaffPage() {
               />
             </div>
           </div>
-        </div>
+        </Section>
 
-        <div>
-          <label className="label">Comissão (%)</label>
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            {[30, 40, 50, 60].map(value => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, commission: value }))}
-                className={`p-2 rounded-lg border-2 transition-all ${
-                  form.commission === value
-                    ? 'border-primary bg-primary text-background font-bold'
-                    : 'border-secondary hover:border-primary/50'
-                }`}
-              >
-                {value}%
-              </button>
-            ))}
-          </div>
-          <input className="input" type="number" min={0} max={100}
-                 value={form.commission}
-                 onChange={(e) => setForm((f) => ({ ...f, commission: Number(e.target.value) }))} 
-                 placeholder="Ou insira um valor personalizado"
+        {/* Comissão */}
+        <PercentageInput
+          label="💰 Comissão"
+          description="Percentual que o colaborador receberá por serviço realizado"
+          value={form.commission}
+          onChange={(commission) => setForm((f) => ({ ...f, commission }))}
+          presets={[30, 40, 50, 60, 70]}
+        />
+
+        {/* Especialidades */}
+        <Section 
+          title="⭐ Especialidades" 
+          description="Selecione os serviços que o profissional domina"
+        >
+          <ChipSelect
+            options={SPECIALTIES}
+            selected={form.specialties}
+            onChange={(specialties) => setForm((f) => ({ ...f, specialties }))}
+            allowCustom
           />
-          <p className="text-sm text-gray-400 mt-1">
-            Percentual que o colaborador receberá por serviço realizado
-          </p>
-        </div>
-        <div>
-          <label className="label">Especialidades</label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-            {['Corte Clássico', 'Corte Moderno', 'Degradê', 'Barba', 'Sobrancelha', 'Relaxamento'].map(spec => {
-              const isSelected = form.specialties.toString().split(',').map((s: string) => s.trim()).includes(spec);
-              return (
-                <button
-                  key={spec}
-                  type="button"
-                  onClick={() => {
-                    const current = form.specialties.toString().split(',').map((s: string) => s.trim()).filter(Boolean);
-                    if (isSelected) {
-                      setForm((f) => ({ ...f, specialties: current.filter(s => s !== spec).join(', ') }));
-                    } else {
-                      setForm((f) => ({ ...f, specialties: [...current, spec].join(', ') }));
-                    }
-                  }}
-                  className={`p-3 rounded-lg border-2 transition-all text-sm ${
-                    isSelected
-                      ? 'border-primary bg-primary/10 font-semibold'
-                      : 'border-secondary hover:border-primary/50'
-                  }`}
-                >
-                  {isSelected && '✓ '}{spec}
-                </button>
-              );
-            })}
-          </div>
-          <input className="input"
-                 value={form.specialties}
-                 onChange={(e) => setForm((f) => ({ ...f, specialties: e.target.value }))}
-                 placeholder="Ou adicione manualmente (separadas por vírgula)" 
-          />
-        </div>
-        <div>
-          <label className="label">Horário de trabalho</label>
-          <div className="space-y-4">
+        </Section>
+
+        {/* Horário de Trabalho */}
+        <Section 
+          title="📅 Horário de Trabalho" 
+          description="Configure os dias e horários de expediente"
+        >
+          <div className="space-y-6">
+            {/* Dias da Semana */}
             <div>
-              <p className="text-sm text-text-secondary mb-2">Dias de trabalho:</p>
-              <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
-                {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => {
-                  const isSelected = workDays.includes(day);
+              <p className="text-sm text-text-secondary mb-3">Dias de trabalho:</p>
+              <div className="grid grid-cols-7 gap-2">
+                {WORK_DAYS.map(day => {
+                  const isSelected = workDays.includes(day.value);
                   return (
                     <button
-                      key={day}
+                      key={day.value}
                       type="button"
                       onClick={() => {
                         if (isSelected) {
-                          setWorkDays(workDays.filter(d => d !== day));
+                          setWorkDays(workDays.filter(d => d !== day.value));
                         } else {
-                          setWorkDays([...workDays, day]);
+                          setWorkDays([...workDays, day.value]);
                         }
                       }}
-                      className={`p-2 rounded-lg border-2 transition-all text-xs font-medium ${
+                      className={`p-3 rounded-xl border-2 transition-all text-sm font-semibold ${
                         isSelected
-                          ? 'border-primary bg-primary/10 text-primary'
+                          ? 'border-primary bg-primary text-background'
                           : 'border-secondary hover:border-primary/50 text-text-secondary'
                       }`}
                     >
-                      {day.slice(0, 3)}
+                      {day.label}
                     </button>
                   );
                 })}
               </div>
             </div>
 
+            {/* Horários */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-text-secondary mb-3">Horário de início:</p>
-                <TimeClockPicker stepMinutes={15} value={startTime} onChange={setStartTime} size={240} />
+              <div className="bg-secondary/30 rounded-xl p-4">
+                <p className="text-sm text-text-secondary mb-3 text-center">🌅 Horário de início</p>
+                <TimeClockPicker stepMinutes={15} value={startTime} onChange={setStartTime} size={200} />
               </div>
-              <div>
-                <p className="text-sm text-text-secondary mb-3">Horário de término:</p>
-                <TimeClockPicker stepMinutes={15} value={endTime} onChange={setEndTime} size={240} />
+              <div className="bg-secondary/30 rounded-xl p-4">
+                <p className="text-sm text-text-secondary mb-3 text-center">🌇 Horário de término</p>
+                <TimeClockPicker stepMinutes={15} value={endTime} onChange={setEndTime} size={200} />
               </div>
             </div>
 
-            <div className="p-3 bg-surface rounded-lg border border-secondary">
-              <p className="text-sm text-text-primary">
-                <strong>Resumo:</strong> {workDays.length > 0 ? workDays.join(', ') : 'Nenhum dia selecionado'} • {String(startTime.hours).padStart(2, '0')}:{String(startTime.minutes).padStart(2, '0')} às {String(endTime.hours).padStart(2, '0')}:{String(endTime.minutes).padStart(2, '0')}
+            {/* Resumo */}
+            <div className="p-4 bg-primary/10 rounded-xl border border-primary/20">
+              <p className="text-sm">
+                <span className="font-semibold text-primary">📋 Resumo:</span>{' '}
+                {workDays.length > 0 ? workDays.join(', ') : 'Nenhum dia selecionado'} •{' '}
+                {String(startTime.hours).padStart(2, '0')}:{String(startTime.minutes).padStart(2, '0')} às{' '}
+                {String(endTime.hours).padStart(2, '0')}:{String(endTime.minutes).padStart(2, '0')}
               </p>
             </div>
           </div>
+        </Section>
+
+        {/* Ação */}
+        <div className="border-t border-border pt-6">
+          <button 
+            className="btn btn-primary btn-lg w-full" 
+            onClick={() => mutation.mutate()} 
+            disabled={!isValid || mutation.isPending}
+          >
+            {mutation.isPending ? '⏳ Criando colaborador...' : '✅ Criar Colaborador'}
+          </button>
+          {!isValid && (
+            <p className="text-sm text-text-secondary text-center mt-3">
+              Preencha todos os campos obrigatórios (*)
+            </p>
+          )}
         </div>
-        <button 
-          className="btn btn-primary w-full" 
-          onClick={() => mutation.mutate()} 
-          disabled={!form.name || !form.email || !form.phone || !form.password || mutation.isPending}
-        >
-          {mutation.isPending ? '⏳ Criando colaborador...' : '✓ Criar Colaborador'}
-        </button>
       </div>
     </div>
   );

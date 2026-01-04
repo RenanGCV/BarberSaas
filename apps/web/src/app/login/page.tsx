@@ -106,21 +106,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-surface to-background p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-surface to-background p-4 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo e Header */}
         <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
+            <span className="text-4xl">✂️</span>
+          </div>
           <h1 className="text-4xl font-bold text-gradient mb-2">BarberSaas</h1>
           <p className="text-text-secondary">
-            {showRegister ? 'Crie sua conta' : 'Gestão completa para sua barbearia'}
+            {showRegister ? 'Crie sua conta e comece a gerenciar' : 'Gestão completa para sua barbearia'}
           </p>
         </div>
 
-        <div className="card animate-slide-up">
+        <div className="card animate-slide-up backdrop-blur-sm bg-surface/80 border border-border">
           {!showRegister ? (
             // Formulário de Login
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="label">Email</label>
+                <label className="label">📧 Email</label>
                 <input
                   type="email"
                   className="input"
@@ -134,7 +144,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="label">Senha</label>
+                <label className="label">🔒 Senha</label>
                 <input
                   type="password"
                   className="input"
@@ -150,10 +160,25 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn btn-primary w-full"
+                className="btn btn-primary btn-lg w-full"
               >
-                {isLoading ? 'Entrando...' : 'Entrar'}
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span> Entrando...
+                  </span>
+                ) : (
+                  '🚀 Entrar'
+                )}
               </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-surface text-text-secondary">ou</span>
+                </div>
+              </div>
 
               <div className="text-center">
                 <button
@@ -161,7 +186,7 @@ export default function LoginPage() {
                   onClick={() => setShowRegister(true)}
                   className="text-sm text-text-secondary hover:text-primary transition-colors"
                 >
-                  Não tem uma conta? <span className="font-medium text-primary">Criar agora</span>
+                  Não tem uma conta? <span className="font-semibold text-primary">Criar agora</span>
                 </button>
               </div>
             </form>
@@ -169,7 +194,7 @@ export default function LoginPage() {
             // Formulário de Cadastro
             <form onSubmit={handleRegister} className="space-y-5">
               <div>
-                <label className="label">Nome Completo</label>
+                <label className="label">👤 Nome Completo</label>
                 <input
                   type="text"
                   className="input"
@@ -182,68 +207,78 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div>
-                <label className="label">Email</label>
-                <input
-                  type="email"
-                  className="input"
-                  placeholder="seu@email.com"
-                  value={registerData.email}
-                  onChange={(e) =>
-                    setRegisterData({ ...registerData, email: e.target.value })
-                  }
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">📧 Email</label>
+                  <input
+                    type="email"
+                    className="input"
+                    placeholder="seu@email.com"
+                    value={registerData.email}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, email: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="label">📱 Telefone</label>
+                  <input
+                    type="tel"
+                    className="input"
+                    placeholder="(11) 99999-9999"
+                    value={registerData.phone}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, phone: e.target.value })
+                    }
+                    required
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="label">Telefone</label>
-                <input
-                  type="tel"
-                  className="input"
-                  placeholder="(11) 99999-9999"
-                  value={registerData.phone}
-                  onChange={(e) =>
-                    setRegisterData({ ...registerData, phone: e.target.value })
-                  }
-                  required
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">🔒 Senha</label>
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder="Mínimo 6 caracteres"
+                    value={registerData.password}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, password: e.target.value })
+                    }
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="label">Senha</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder="Mínimo 6 caracteres"
-                  value={registerData.password}
-                  onChange={(e) =>
-                    setRegisterData({ ...registerData, password: e.target.value })
-                  }
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="label">Confirmar Senha</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder="Digite a senha novamente"
-                  value={registerData.confirmPassword}
-                  onChange={(e) =>
-                    setRegisterData({ ...registerData, confirmPassword: e.target.value })
-                  }
-                  required
-                />
+                <div>
+                  <label className="label">🔒 Confirmar Senha</label>
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder="Digite novamente"
+                    value={registerData.confirmPassword}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, confirmPassword: e.target.value })
+                    }
+                    required
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn btn-primary w-full"
+                className="btn btn-primary btn-lg w-full"
               >
-                {isLoading ? 'Criando conta...' : 'Criar Conta'}
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span> Criando conta...
+                  </span>
+                ) : (
+                  '✨ Criar Conta'
+                )}
               </button>
 
               <div className="text-center">
@@ -255,14 +290,17 @@ export default function LoginPage() {
                   }}
                   className="text-sm text-text-secondary hover:text-primary transition-colors"
                 >
-                  Já tem uma conta? <span className="font-medium text-primary">Entrar</span>
+                  Já tem uma conta? <span className="font-semibold text-primary">Entrar</span>
                 </button>
               </div>
             </form>
           )}
-
-
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-text-secondary mt-6">
+          © 2024 BarberSaas. Todos os direitos reservados.
+        </p>
       </div>
     </div>
   );

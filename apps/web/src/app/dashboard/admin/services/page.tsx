@@ -1,5 +1,6 @@
 'use client';
 
+import { EmptyState, LoadingSpinner, PageHeader, Section } from '@/components/ui';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,49 +22,117 @@ export default function ServicesListPage() {
       await api.delete(`/services/${id}`);
     },
     onSuccess: () => {
-      toast.success('Serviço removido');
+      toast.success('Serviço removido com sucesso!');
       qc.invalidateQueries({ queryKey: ['services'] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Erro ao remover'),
   });
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Serviços</h1>
-        <Link href="/dashboard/admin/services/new" className="btn btn-primary">Novo serviço</Link>
-      </div>
+  if (isLoading) {
+    return <LoadingSpinner size="lg" />;
+  }
 
-      <div className="card">
-        {isLoading ? (
-          <p className="text-text-secondary">Carregando...</p>
-        ) : (
-          <div className="space-y-2">
-            {(data || []).map((s: any) => (
-              <div key={s.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center p-3 bg-secondary rounded-lg">
-                <div className="md:col-span-2">
-                  <p className="font-medium">{s.name}</p>
-                  <p className="text-xs text-text-secondary">{s.description || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-text-secondary">Preço</p>
-                  <p className="font-semibold">{formatCurrency(s.price || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-text-secondary">Duração</p>
-                  <p className="font-semibold">{s.duration} min</p>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Link href={`/dashboard/admin/services/${s.id}/edit`} className="btn btn-secondary">Editar</Link>
-                  <button onClick={() => removeMutation.mutate(s.id)} className="btn btn-danger">Remover</button>
-                </div>
-              </div>
-            ))}
-            {(!data || data.length === 0) && (
-              <p className="text-text-secondary">Nenhum serviço cadastrado.</p>
-            )}
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        title="Serviços"
+        description={`${data?.length || 0} serviços cadastrados`}
+        backHref="/dashboard/admin"
+        action={
+          <Link href="/dashboard/admin/services/new" className="btn btn-primary">
+            <span>+</span> Novo Serviço
+          </Link>
+        }
+      />
+
+      {(!data || data.length === 0) ? (
+        <div className="card">
+          <EmptyState
+            icon="💇"
+            title="Nenhum serviço cadastrado"
+            description="Crie seu primeiro serviço para começar a receber agendamentos"
+            action={
+              <Link href="/dashboard/admin/services/new" className="btn btn-primary">
+                Criar Primeiro Serviço
+              </Link>
+            }
+          />
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {data.map((service: any) => (
+            <ServiceCard
+              key={service.id}
+              service={service}
+              onRemove={() => removeMutation.mutate(service.id)}
+              isRemoving={removeMutation.isPending}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ServiceCard({ 
+  service, 
+  onRemove, 
+  isRemoving 
+}: { 
+  service: any; 
+  onRemove: () => void; 
+  isRemoving: boolean;
+}) {
+  return (
+    <div className="card card-hover">
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        {/* Info */}
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl">
+              ✂️
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">{service.name}</h3>
+              <p className="text-sm text-text-secondary">
+                {service.description || 'Sem descrição'}
+              </p>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Stats */}
+        <div className="flex items-center gap-6">
+          <div className="text-center">
+            <p className="text-xs text-text-secondary uppercase tracking-wide">Preço</p>
+            <p className="text-xl font-bold text-primary">
+              {formatCurrency(service.price || 0)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-text-secondary uppercase tracking-wide">Duração</p>
+            <p className="text-xl font-bold">
+              {service.duration}<span className="text-sm text-text-secondary">min</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Link 
+            href={`/dashboard/admin/services/${service.id}/edit`} 
+            className="btn btn-secondary"
+          >
+            ✏️ Editar
+          </Link>
+          <button 
+            onClick={onRemove} 
+            disabled={isRemoving}
+            className="btn btn-danger"
+          >
+            🗑️ Remover
+          </button>
+        </div>
       </div>
     </div>
   );
