@@ -1,17 +1,35 @@
 'use client';
 
+import { ButtonSelect, ChipSelect, DurationInput, LoadingSpinner, PageHeader, PriceInput, Section } from '@/components/ui';
 import api from '@/lib/api';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+const SERVICE_NAMES = [
+  { value: 'Corte Simples', label: '✂️ Corte Simples' },
+  { value: 'Corte + Barba', label: '✂️🧔 Corte + Barba' },
+  { value: 'Barba', label: '🧔 Barba' },
+  { value: 'Degradê', label: '💇 Degradê' },
+  { value: 'Sobrancelha', label: '👁️ Sobrancelha' },
+  { value: 'Relaxamento', label: '💆 Relaxamento' },
+  { value: 'Corte Premium', label: '⭐ Corte Premium' },
+  { value: 'Pacote Completo', label: '🎁 Pacote Completo' },
+];
+
 export default function EditServicePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', description: '', price: 0, duration: 30, barberIds: [] as string[] });
+  const [form, setForm] = useState({ 
+    name: '', 
+    description: '', 
+    price: 0, 
+    duration: 30, 
+    barberIds: [] as string[] 
+  });
 
-  const { data: service } = useQuery({
+  const { data: service, isLoading: serviceLoading } = useQuery({
     queryKey: ['service', id],
     enabled: !!id,
     queryFn: async () => {
@@ -19,6 +37,7 @@ export default function EditServicePage() {
       return res.data;
     },
   });
+
   const { data: barbers } = useQuery({
     queryKey: ['barbers'],
     queryFn: async () => {
@@ -39,68 +58,123 @@ export default function EditServicePage() {
     }
   }, [service]);
 
-  const toggleBarber = (bid: string) => {
-    setForm((f) => ({
-      ...f,
-      barberIds: f.barberIds.includes(bid) ? f.barberIds.filter((b) => b !== bid) : [...f.barberIds, bid],
-    }));
-  };
-
   const mutation = useMutation({
     mutationFn: async () => {
       await api.put(`/services/${id}`, form);
     },
     onSuccess: () => {
-      toast.success('Serviço atualizado');
+      toast.success('Serviço atualizado com sucesso!');
       router.replace('/dashboard/admin/services');
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Erro ao salvar'),
   });
 
+  const barberOptions = (barbers || []).map((b: any) => ({
+    value: b.id,
+    label: b?.user?.name || b.name || 'Barbeiro',
+  }));
+
+  if (serviceLoading) {
+    return <LoadingSpinner size="lg" />;
+  }
+
+  const isValid = form.name.trim() && form.duration > 0 && form.price >= 0;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Editar serviço</h1>
-        <a href="/dashboard/admin/services" className="btn btn-secondary">Voltar</a>
-      </div>
-      <div className="card space-y-4">
-        <div>
-          <label className="label">Nome</label>
-          <input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        title={`Editar ${service?.name || 'Serviço'}`}
+        description="Atualize os detalhes do serviço"
+        backHref="/dashboard/admin/services"
+      />
+
+      <div className="card space-y-8">
+        {/* Nome do Serviço */}
+        <Section 
+          title="Nome do Serviço" 
+          description="Escolha um nome padrão ou personalize"
+        >
+          <ButtonSelect
+            options={SERVICE_NAMES}
+            value={form.name}
+            onChange={(name) => setForm((f) => ({ ...f, name }))}
+            columns={4}
+          />
+          <input 
+            className="input mt-3" 
+            value={form.name} 
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="✏️ Ou digite um nome personalizado..."
+          />
+        </Section>
+
+        {/* Descrição */}
+        <Section title="📝 Descrição" description="Opcional - descreva o que inclui o serviço">
+          <textarea 
+            className="input min-h-[80px] resize-none" 
+            value={form.description} 
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Ex: Corte de cabelo tradicional com acabamento e finalização"
+          />
+        </Section>
+
+        {/* Preço e Duração */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <PriceInput
+            label="💰 Preço"
+            value={form.price}
+            onChange={(price) => setForm((f) => ({ ...f, price }))}
+            presets={[30, 45, 60, 80, 100, 150]}
+          />
+          <DurationInput
+            label="⏱️ Duração"
+            value={form.duration}
+            onChange={(duration) => setForm((f) => ({ ...f, duration }))}
+            presets={[15, 30, 45, 60, 90, 120]}
+          />
         </div>
-        <div>
-          <label className="label">Descrição</label>
-          <input className="input" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="label">Preço</label>
-            <input className="input" type="number" min={0} step={0.01}
-                   value={form.price}
-                   onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))} />
+
+        {/* Barbeiros */}
+        <Section 
+          title="👥 Profissionais Habilitados" 
+          description="Selecione quem pode realizar este serviço"
+        >
+          {barberOptions.length > 0 ? (
+            <ChipSelect
+              options={barberOptions}
+              selected={form.barberIds}
+              onChange={(barberIds) => setForm((f) => ({ ...f, barberIds }))}
+            />
+          ) : (
+            <div className="bg-secondary/50 rounded-xl p-4 text-center text-text-secondary">
+              <p>Nenhum profissional cadastrado ainda</p>
+              <a href="/dashboard/admin/staff/new" className="text-primary hover:underline text-sm">
+                + Adicionar profissional
+              </a>
+            </div>
+          )}
+        </Section>
+
+        {/* Resumo e Ação */}
+        <div className="border-t border-border pt-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              {form.name && (
+                <p className="text-text-secondary">
+                  <span className="font-semibold text-text">{form.name}</span> — R$ {form.price.toFixed(2)} — {form.duration} min
+                  {form.barberIds.length > 0 && ` — ${form.barberIds.length} profissional(is)`}
+                </p>
+              )}
+            </div>
+            <button 
+              className="btn btn-primary btn-lg w-full md:w-auto" 
+              onClick={() => mutation.mutate()} 
+              disabled={!isValid || mutation.isPending}
+            >
+              {mutation.isPending ? '⏳ Salvando...' : '✅ Salvar Alterações'}
+            </button>
           </div>
-          <div>
-            <label className="label">Duração (min)</label>
-            <input className="input" type="number" min={5} step={5}
-                   value={form.duration}
-                   onChange={(e) => setForm((f) => ({ ...f, duration: Number(e.target.value) }))} />
-          </div>
         </div>
-        <div>
-          <label className="label">Barbeiros habilitados</label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {(barbers || []).map((b: any) => (
-              <button type="button" key={b.id}
-                      onClick={() => toggleBarber(b.id)}
-                      className={`px-3 py-2 rounded-lg border ${form.barberIds.includes(b.id) ? 'bg-primary text-black' : 'bg-secondary'}`}>
-                {b?.user?.name || b.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button className="btn btn-primary" onClick={() => mutation.mutate()} disabled={!form.name || !form.duration}>
-          Salvar
-        </button>
       </div>
     </div>
   );

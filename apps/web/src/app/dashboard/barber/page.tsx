@@ -1,5 +1,6 @@
 'use client';
 
+import { EmptyState, LoadingSpinner, PageHeader, Section, StatCard } from '@/components/ui';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
@@ -21,55 +22,98 @@ export default function BarberDashboardPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner size="lg" />;
   }
 
   const today = new Date().toISOString().split('T')[0];
   const todays = (data?.appointments || []).filter((a: any) => (a?.scheduledAt || '').slice(0,10) === today);
+  const upcoming = (data?.appointments || []).slice(0, 8);
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Seu dia</h1>
-        <p className="text-text-secondary">Agendamentos e desempenho</p>
-      </div>
+      <PageHeader
+        title={`Olá, ${user?.name?.split(' ')[0] || 'Barbeiro'}! 👋`}
+        description="Seu painel de agendamentos e desempenho"
+      />
 
+      {/* Stats do Dia */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <CardStat label="Cortes Hoje" value={todays.length} />
-        <CardStat label="Próximo Atendimento" value={todays[0] ? formatDateTime(todays[0].scheduledAt) : '—'} />
-        <CardStat label="Comissão (estimada)" value={formatCurrency((todays.length * 10) || 0)} />
+        <StatCard 
+          label="Cortes Hoje" 
+          value={todays.length.toString()} 
+          icon="✂️"
+          color="primary"
+        />
+        <StatCard 
+          label="Próximo Atendimento" 
+          value={todays[0] ? formatDateTime(todays[0].scheduledAt).split(' ')[1] || '—' : '—'} 
+          icon="⏰"
+          color="info"
+        />
+        <StatCard 
+          label="Comissão Estimada" 
+          value={formatCurrency((todays.length * 25) || 0)} 
+          icon="💰"
+          color="success"
+        />
       </div>
 
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Próximos agendamentos</h2>
-        <div className="space-y-2">
-          {(data?.appointments || []).slice(0,8).map((a: any) => (
-            <div key={a.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-              <div>
-                <p className="font-medium">{a?.customer?.name || 'Cliente Anônimo'}</p>
-                <p className="text-sm text-text-secondary">{a?.service?.name || 'Serviço'} • {formatDateTime(a?.scheduledAt)}</p>
-              </div>
-              <span className="text-xs text-text-secondary uppercase">{a?.status}</span>
-            </div>
-          ))}
-          {(!data?.appointments || data.appointments.length === 0) && (
-            <p className="text-text-secondary">Sem agendamentos no momento.</p>
-          )}
-        </div>
-      </div>
+      {/* Próximos Agendamentos */}
+      <Section 
+        title="📅 Próximos Agendamentos" 
+        description={`${upcoming.length} agendamentos na fila`}
+      >
+        {upcoming.length === 0 ? (
+          <EmptyState
+            icon="📭"
+            title="Sem agendamentos"
+            description="Você não tem agendamentos próximos no momento"
+          />
+        ) : (
+          <div className="space-y-3">
+            {upcoming.map((a: any) => (
+              <AppointmentCard key={a.id} appointment={a} />
+            ))}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }
 
-function CardStat({ label, value }: { label: string; value: any }) {
+function AppointmentCard({ appointment }: { appointment: any }) {
+  const statusColors: Record<string, string> = {
+    CONFIRMED: 'badge-success',
+    PENDING: 'badge-warning',
+    CANCELLED: 'badge-error',
+    COMPLETED: 'badge-info',
+  };
+
+  const statusLabels: Record<string, string> = {
+    CONFIRMED: '✅ Confirmado',
+    PENDING: '⏳ Pendente',
+    CANCELLED: '❌ Cancelado',
+    COMPLETED: '✔️ Concluído',
+  };
+
   return (
-    <div className="card">
-      <p className="text-sm text-text-secondary">{label}</p>
-      <p className="text-2xl font-bold mt-2">{value}</p>
+    <div className="card card-hover p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl">
+            👤
+          </div>
+          <div>
+            <p className="font-semibold">{appointment?.customer?.name || 'Cliente Anônimo'}</p>
+            <p className="text-sm text-text-secondary">
+              {appointment?.service?.name || 'Serviço'} • {formatDateTime(appointment?.scheduledAt)}
+            </p>
+          </div>
+        </div>
+        <span className={`badge ${statusColors[appointment?.status] || 'badge-info'}`}>
+          {statusLabels[appointment?.status] || appointment?.status}
+        </span>
+      </div>
     </div>
   );
 }
