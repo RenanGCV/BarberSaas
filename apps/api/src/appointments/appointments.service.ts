@@ -5,6 +5,7 @@
     NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { AppointmentsGateway } from './appointments.gateway';
 import {
     ChangeStatusDto,
@@ -19,10 +20,25 @@ export class AppointmentsService {
   constructor(
     private prisma: PrismaService,
     private appointmentsGateway: AppointmentsGateway,
+    private whatsappService: WhatsAppService,
   ) {}
 
   async create(createAppointmentDto: CreateAppointmentDto, customerId: string | null, tenantId: string | null) {
-    const { serviceId, barberId, scheduledAt, notes } = createAppointmentDto;
+    const { serviceId, barberId, scheduledAt, notes, guestName, guestPhone } = createAppointmentDto;
+
+    // Validação: se não tem customerId (não está logado), precisa ter nome e telefone
+    if (!customerId && (!guestName || !guestPhone)) {
+      throw new BadRequestException(
+        'Para agendar sem login, é necessário informar nome e telefone do cliente.'
+      );
+    }
+
+    // Validar formato de telefone se fornecido
+    if (guestPhone && !this.whatsappService.validateBrazilianPhone(guestPhone)) {
+      throw new BadRequestException(
+        'Telefone inválido. Use o formato (XX) XXXXX-XXXX ou (XX) XXXX-XXXX'
+      );
+    }
 
     // Converter data
     const appointmentDate = new Date(scheduledAt);
@@ -45,6 +61,12 @@ export class AppointmentsService {
           where: { serviceId },
         },
         tenant: true,
+        user: {
+          select: {
+            name: true,
+            phone: true,
+          },
+        },
       },
     });
 
@@ -98,6 +120,8 @@ export class AppointmentsService {
         customerId,
         scheduledAt: appointmentDate,
         notes,
+        guestName,
+        guestPhone,
         status: 'PENDING',
       },
       include: {
@@ -123,6 +147,33 @@ export class AppointmentsService {
 
     // Notificar via WebSocket
     this.appointmentsGateway.notifyAppointmentCreated(appointment);
+
+    // Enviar notificação WhatsApp para a barbearia
+    if (guestName && guestPhone && barber.user.phone) {
+      try {
+        await this.whatsappService.sendAppointmentConfirmationToBarbershop({
+          barberPhone: barber.user.phone,
+          barbershopName: tenant.name,
+          guestName,
+          guestPhone,
+          serviceName: service.name,
+          scheduledAt: appointmentDate,
+          appointmentId: appointment.id,
+        });
+
+        // Enviar confirmação para o cliente
+        await this.whatsappService.sendAppointmentConfirmationToGuest({
+          guestPhone,
+          guestName,
+          barbershopName: tenant.name,
+          serviceName: service.name,
+          scheduledAt: appointmentDate,
+        });
+      } catch (error) {
+        // Log do erro mas não bloqueia o agendamento
+        console.error('Erro ao enviar WhatsApp:', error);
+      }
+    }
 
     return appointment;
   }

@@ -37,6 +37,21 @@ export class CreateAppointmentDto {
   @Transform(({ value }) => value?.trim())
   @IsOptional()
   notes?: string;
+
+  // Campos para agendamento sem login (convidado)
+  @ApiProperty({ example: 'João Silva', required: false, description: 'Nome do cliente (obrigatório se não estiver logado)' })
+  @IsString({ message: 'O nome deve ser um texto válido' })
+  @MaxLength(100, { message: 'O nome deve ter no máximo 100 caracteres' })
+  @Transform(({ value }) => value?.trim())
+  @IsOptional()
+  guestName?: string;
+
+  @ApiProperty({ example: '(11) 98765-4321', required: false, description: 'Telefone do cliente (obrigatório se não estiver logado)' })
+  @IsString({ message: 'O telefone deve ser um texto válido' })
+  @MaxLength(20, { message: 'O telefone deve ter no máximo 20 caracteres' })
+  @Transform(({ value }) => value?.trim())
+  @IsOptional()
+  guestPhone?: string;
 }
 
 export class UpdateAppointmentDto {

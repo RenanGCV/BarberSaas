@@ -219,6 +219,11 @@ model Appointment {
   scheduledAt DateTime
   status      AppointmentStatus @default(PENDING)
   notes       String?
+  
+  // Campos para agendamento sem cadastro (convidado)
+  guestName   String?
+  guestPhone  String?
+  
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -237,6 +242,7 @@ model Appointment {
   @@index([scheduledAt])
   @@index([tenantId, scheduledAt])
   @@index([barberId, scheduledAt])
+  @@index([guestPhone])
   @@map("appointments")
 }
 

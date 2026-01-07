@@ -13,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { AppointmentsService } from './appointments.service';
 import {
     ChangeStatusDto,
@@ -23,17 +24,18 @@ import {
 } from './dto';
 
 @ApiTags('appointments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private appointmentsService: AppointmentsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Criar novo agendamento' })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ 
+    summary: 'Criar novo agendamento (público ou autenticado)',
+    description: 'Permite criar agendamento sem login (fornecendo nome e telefone) ou com login (usando token JWT)'
+  })
   @ApiResponse({ status: 201, description: 'Agendamento criado com sucesso' })
-  @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  @ApiResponse({ status: 401, description: 'Não autenticado' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos ou nome/telefone obrigatórios para convidados' })
   @ApiResponse({ status: 404, description: 'Barbeiro ou serviço não encontrado' })
   create(@Body() createAppointmentDto: CreateAppointmentDto, @CurrentUser() user) {
     const customerId = user?.id || null;
@@ -42,6 +44,8 @@ export class AppointmentsController {
   }
 
   @Get()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Listar todos os agendamentos' })
   @ApiQuery({ name: 'customerId', required: false })
   @ApiResponse({ status: 200, description: 'Lista de agendamentos retornada com sucesso' })
@@ -51,6 +55,8 @@ export class AppointmentsController {
   }
 
   @Get('search')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Buscar agendamentos com filtros avançados' })
   @ApiResponse({ status: 200, description: 'Agendamentos filtrados retornados com sucesso' })
   @ApiResponse({ status: 401, description: 'Não autenticado' })
@@ -59,6 +65,8 @@ export class AppointmentsController {
   }
 
   @Get('upcoming')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Listar próximos agendamentos' })
   @ApiQuery({ name: 'customerId', required: false })
   @ApiResponse({ status: 200, description: 'Próximos agendamentos retornados com sucesso' })
@@ -68,6 +76,8 @@ export class AppointmentsController {
   }
 
   @Get(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Buscar agendamento por ID' })
   @ApiResponse({ status: 200, description: 'Agendamento encontrado' })
   @ApiResponse({ status: 401, description: 'Não autenticado' })
@@ -77,6 +87,8 @@ export class AppointmentsController {
   }
 
   @Put(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Atualizar agendamento' })
   @ApiResponse({ status: 200, description: 'Agendamento atualizado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
@@ -91,6 +103,8 @@ export class AppointmentsController {
   }
 
   @Patch(':id/status')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Alterar status do agendamento' })
   @ApiResponse({ status: 200, description: 'Status alterado com sucesso' })
   @ApiResponse({ status: 400, description: 'Status inválido' })
@@ -105,6 +119,8 @@ export class AppointmentsController {
   }
 
   @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cancelar agendamento' })
   @ApiResponse({ status: 200, description: 'Agendamento cancelado com sucesso' })
   @ApiResponse({ status: 401, description: 'Não autenticado' })
@@ -114,38 +130,42 @@ export class AppointmentsController {
   }
 
   @Get('barber/:barberId/schedule')
-  @ApiOperation({ summary: 'Ver agenda de um barbeiro em data específica' })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Ver agenda de um barbeiro em data específica (público)' })
   @ApiQuery({ name: 'date', required: true, example: '2024-02-15' })
   @ApiResponse({ status: 200, description: 'Agenda do barbeiro retornada com sucesso' })
-  @ApiResponse({ status: 401, description: 'Não autenticado' })
   @ApiResponse({ status: 404, description: 'Barbeiro não encontrado' })
   getBarberSchedule(
     @Param('barberId') barberId: string,
     @Query('date') date: string,
     @CurrentUser() user,
   ) {
-    return this.appointmentsService.getBarberSchedule(barberId, date, user.tenantId);
+    const tenantId = user?.tenantId || null;
+    return this.appointmentsService.getBarberSchedule(barberId, date, tenantId);
   }
 
   @Post('barber/:barberId/check-availability')
-  @ApiOperation({ summary: 'Verificar horários disponíveis de um barbeiro' })
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Verificar horários disponíveis de um barbeiro (público)' })
   @ApiResponse({ status: 200, description: 'Disponibilidade verificada com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  @ApiResponse({ status: 401, description: 'Não autenticado' })
   @ApiResponse({ status: 404, description: 'Barbeiro não encontrado' })
   checkAvailability(
     @Param('barberId') barberId: string,
     @Body() checkAvailabilityDto: CheckAvailabilityDto,
     @CurrentUser() user,
   ) {
+    const tenantId = user?.tenantId || null;
     return this.appointmentsService.checkAvailability(
       barberId,
       checkAvailabilityDto,
-      user.tenantId,
+      tenantId,
     );
   }
 
   @Get('stats')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Estatísticas de agendamentos' })
   @ApiQuery({ name: 'startDate', required: false, example: '2024-01-01' })
   @ApiQuery({ name: 'endDate', required: false, example: '2024-12-31' })
@@ -160,6 +180,8 @@ export class AppointmentsController {
   }
 
   @Get('calendar')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Visualização de calendário mensal' })
   @ApiQuery({ name: 'month', required: true, example: 2 })
   @ApiQuery({ name: 'year', required: true, example: 2024 })
