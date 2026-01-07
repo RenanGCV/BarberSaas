@@ -9,6 +9,11 @@ export const barberService = {
     return response.data.barbers;
   },
 
+  async getByTenant(tenantId: string): Promise<Barber[]> {
+    const response = await api.get<{ barbers: Barber[] }>(`/barbers/tenant/${tenantId}`);
+    return response.data.barbers;
+  },
+
   async getById(id: string): Promise<Barber> {
     const response = await api.get<Barber>(`/barbers/${id}`);
     return response.data;

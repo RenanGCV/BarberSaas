@@ -105,6 +105,19 @@ export default function LoginScreen() {
             variant="ghost"
             fullWidth
           />
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>ou</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            title="Continuar como convidado"
+            onPress={() => router.replace('/(public)')}
+            variant="outline"
+            fullWidth
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -137,5 +150,20 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: theme.spacing.md,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: theme.spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  dividerText: {
+    color: theme.colors.textSecondary,
+    marginHorizontal: theme.spacing.md,
+    fontSize: theme.fontSize.sm,
   },
 });

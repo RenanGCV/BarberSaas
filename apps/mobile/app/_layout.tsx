@@ -15,6 +15,13 @@ export default function RootLayout() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inPublicGroup = segments[0] === '(public)';
+    const inBookingFlow = segments[0] === 'booking';
+
+    // Permite acesso público a rotas de agendamento
+    if (inPublicGroup || inBookingFlow) {
+      return;
+    }
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/login');
@@ -36,6 +43,8 @@ export default function RootLayout() {
     >
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(public)" options={{ headerShown: false }} />
+      <Stack.Screen name="booking" options={{ headerShown: false }} />
     </Stack>
   );
 }

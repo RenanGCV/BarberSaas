@@ -51,7 +51,7 @@ export default function HomeScreen() {
 
   const handleSelectBarbershop = (barbershop: Tenant) => {
     setSelectedTenant(barbershop);
-    router.push(`/barbershop/${barbershop.id}`);
+    router.push(`/booking/barbershop/${barbershop.id}`);
   };
 
   if (isLoading) {
