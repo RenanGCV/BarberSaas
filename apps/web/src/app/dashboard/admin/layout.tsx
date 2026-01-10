@@ -51,7 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavLink href="/dashboard/admin" icon="🏠" label="Início" />
               <NavLink href="/dashboard/admin/staff" icon="👥" label="Equipe" />
               <NavLink href="/dashboard/admin/services" icon="✂️" label="Serviços" />
-              <NavLink href="/dashboard/appointments" icon="📅" label="Agenda" />
+              <NavLink href="/dashboard/admin/appointments" icon="📅" label="Agenda" />
               <NavLink href="/dashboard/reports" icon="📊" label="Relatórios" />
             </div>
 
@@ -80,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <MobileNavLink href="/dashboard/admin" icon="🏠" label="Início" />
           <MobileNavLink href="/dashboard/admin/staff" icon="👥" label="Equipe" />
           <MobileNavLink href="/dashboard/admin/services" icon="✂️" label="Serviços" />
-          <MobileNavLink href="/dashboard/appointments" icon="📅" label="Agenda" />
+          <MobileNavLink href="/dashboard/admin/appointments" icon="📅" label="Agenda" />
           <MobileNavLink href="/dashboard/reports" icon="📊" label="Relatórios" />
         </div>
       </nav>

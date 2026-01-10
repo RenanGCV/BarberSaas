@@ -367,9 +367,15 @@ export class BarbersService {
   }
 
   async remove(id: string, tenantId: string) {
-    await this.findOne(id, tenantId);
+    const barber = await this.prisma.barber.findFirst({
+      where: { id, tenantId },
+    });
 
-    // Soft delete
+    if (!barber) {
+      throw new NotFoundException('Barbeiro não encontrado');
+    }
+
+    // Soft delete - apenas desativa o barbeiro
     await this.prisma.barber.update({
       where: { id },
       data: { isActive: false },
