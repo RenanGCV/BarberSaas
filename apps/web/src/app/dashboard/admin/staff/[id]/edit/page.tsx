@@ -8,17 +8,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-const SPECIALTIES = [
-  { value: 'Corte Clássico', label: '✂️ Corte Clássico' },
-  { value: 'Corte Moderno', label: '💇 Corte Moderno' },
-  { value: 'Degradê', label: '📐 Degradê' },
-  { value: 'Barba', label: '🧔 Barba' },
-  { value: 'Sobrancelha', label: '👁️ Sobrancelha' },
-  { value: 'Relaxamento', label: '💆 Relaxamento' },
-  { value: 'Coloração', label: '🎨 Coloração' },
-  { value: 'Platinado', label: '⭐ Platinado' },
-];
-
 const WORK_DAYS = [
   { value: 'Domingo', label: 'Dom' },
   { value: 'Segunda', label: 'Seg' },
@@ -74,7 +63,7 @@ export default function EditStaffPage() {
   const router = useRouter();
   
   const [commission, setCommission] = useState(0);
-  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [workDays, setWorkDays] = useState<string[]>(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta']);
   const [startTime, setStartTime] = useState({ hours: 9, minutes: 0 });
   const [endTime, setEndTime] = useState({ hours: 18, minutes: 0 });
@@ -91,14 +80,30 @@ export default function EditStaffPage() {
     },
   });
 
+  // Buscar serviços do tenant para usar como especialidades
+  const { data: services, isLoading: loadingServices } = useQuery({
+    queryKey: ['services'],
+    queryFn: async () => {
+      const res = await api.get('/services');
+      return res.data;
+    },
+  });
+
+  // Converter serviços para opções (usando ID como valor)
+  const serviceOptions = (services || []).map((service: any) => ({
+    value: service.id,
+    label: `✂️ ${service.name}`,
+  }));
+
   useEffect(() => {
     if (data) {
       // Comissão - converter de decimal (0.5) para percentual (50)
       const commissionValue = data.commissionRate ?? data.commission ?? 0;
       setCommission(commissionValue <= 1 ? commissionValue * 100 : commissionValue);
       
-      // Especialidades
-      setSpecialties(data.specialties || []);
+      // Serviços do barbeiro - extrair IDs
+      const serviceIds = (data.services || []).map((bs: any) => bs.serviceId || bs.service?.id).filter(Boolean);
+      setSelectedServiceIds(serviceIds);
       
       // Horário de trabalho
       const parsed = parseWorkingHours(data.workingHours || '');
@@ -118,7 +123,7 @@ export default function EditStaffPage() {
 
       await api.put(`/barbers/${id}`, {
         commissionRate: commission / 100, // Enviar como decimal
-        specialties,
+        serviceIds: selectedServiceIds,
         workingHours,
       });
     },
@@ -153,17 +158,28 @@ export default function EditStaffPage() {
           presets={[30, 40, 50, 60, 70]}
         />
 
-        {/* Especialidades */}
+        {/* Serviços */}
         <Section 
-          title="⭐ Especialidades" 
-          description="Selecione os serviços que o profissional domina"
+          title="✂️ Serviços" 
+          description="Selecione os serviços que o profissional realiza"
         >
-          <ChipSelect
-            options={SPECIALTIES}
-            selected={specialties}
-            onChange={setSpecialties}
-            allowCustom
-          />
+          {loadingServices ? (
+            <div className="flex items-center justify-center py-6">
+              <LoadingSpinner size="sm" />
+              <span className="ml-2 text-text-secondary">Carregando serviços...</span>
+            </div>
+          ) : serviceOptions.length === 0 ? (
+            <div className="text-center py-6 text-text-secondary">
+              <p>⚠️ Nenhum serviço cadastrado.</p>
+              <p className="text-sm mt-1">Cadastre serviços primeiro em Serviços &gt; Novo Serviço</p>
+            </div>
+          ) : (
+            <ChipSelect
+              options={serviceOptions}
+              selected={selectedServiceIds}
+              onChange={setSelectedServiceIds}
+            />
+          )}
         </Section>
 
         {/* Horário de Trabalho */}

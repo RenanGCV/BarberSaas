@@ -1,23 +1,12 @@
 'use client';
 
 import TimeClockPicker from '@/components/TimeClockPicker';
-import { ButtonSelect, ChipSelect, PageHeader, PercentageInput, Section } from '@/components/ui';
+import { ChipSelect, LoadingSpinner, PageHeader, PercentageInput, Section } from '@/components/ui';
 import api from '@/lib/api';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
-
-const SPECIALTIES = [
-  { value: 'Corte Clássico', label: '✂️ Corte Clássico' },
-  { value: 'Corte Moderno', label: '💇 Corte Moderno' },
-  { value: 'Degradê', label: '📐 Degradê' },
-  { value: 'Barba', label: '🧔 Barba' },
-  { value: 'Sobrancelha', label: '👁️ Sobrancelha' },
-  { value: 'Relaxamento', label: '💆 Relaxamento' },
-  { value: 'Coloração', label: '🎨 Coloração' },
-  { value: 'Platinado', label: '⭐ Platinado' },
-];
 
 const WORK_DAYS = [
   { value: 'Domingo', label: 'Dom' },
@@ -37,8 +26,8 @@ export default function NewStaffPage() {
     phone: '',
     password: '',
     commission: 50,
-    specialties: [] as string[],
   });
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
 
   const [startTime, setStartTime] = useState({ hours: 9, minutes: 0 });
   const [endTime, setEndTime] = useState({ hours: 18, minutes: 0 });
@@ -46,6 +35,21 @@ export default function NewStaffPage() {
   const [hasLunch, setHasLunch] = useState(true);
   const [lunchStart, setLunchStart] = useState({ hours: 12, minutes: 0 });
   const [lunchEnd, setLunchEnd] = useState({ hours: 13, minutes: 0 });
+
+  // Buscar serviços cadastrados para usar como especialidades
+  const { data: services, isLoading: loadingServices } = useQuery({
+    queryKey: ['services'],
+    queryFn: async () => {
+      const res = await api.get('/services');
+      return res.data;
+    },
+  });
+
+  // Converter serviços em opções para o ChipSelect (usando ID como valor)
+  const serviceOptions = (services || []).map((service: any) => ({
+    value: service.id,
+    label: `✂️ ${service.name}`,
+  }));
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -74,7 +78,7 @@ export default function NewStaffPage() {
       await api.post('/barbers', {
         userId,
         commission: Number(form.commission) || 0,
-        specialties: form.specialties,
+        serviceIds: selectedServiceIds,
         workingHours,
       });
     },
@@ -152,17 +156,32 @@ export default function NewStaffPage() {
           presets={[30, 40, 50, 60, 70]}
         />
 
-        {/* Especialidades */}
+        {/* Especialidades - Serviços que o barbeiro realiza */}
         <Section 
-          title="⭐ Especialidades" 
-          description="Selecione os serviços que o profissional domina"
+          title="⭐ Serviços que Realiza" 
+          description="Selecione quais serviços este profissional oferece"
         >
-          <ChipSelect
-            options={SPECIALTIES}
-            selected={form.specialties}
-            onChange={(specialties) => setForm((f) => ({ ...f, specialties }))}
-            allowCustom
-          />
+          {loadingServices ? (
+            <div className="flex items-center gap-2 text-text-secondary">
+              <LoadingSpinner size="sm" />
+              <span>Carregando serviços...</span>
+            </div>
+          ) : serviceOptions.length === 0 ? (
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+              <p className="text-yellow-500 text-sm">
+                ⚠️ Nenhum serviço cadastrado. Cadastre os serviços primeiro em{' '}
+                <a href="/dashboard/admin/services" className="underline font-medium">
+                  Gerenciar Serviços
+                </a>
+              </p>
+            </div>
+          ) : (
+            <ChipSelect
+              options={serviceOptions}
+              selected={selectedServiceIds}
+              onChange={setSelectedServiceIds}
+            />
+          )}
         </Section>
 
         {/* Horário de Trabalho */}

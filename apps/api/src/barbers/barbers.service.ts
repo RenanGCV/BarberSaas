@@ -56,6 +56,14 @@ export class BarbersService {
         specialties: createBarberDto.specialties || [],
         ...(commissionRate != null ? { commissionRate } : {}),
         ...(createBarberDto.workingHours ? { workingHours: createBarberDto.workingHours } : {}),
+        // Criar relações com serviços
+        ...(createBarberDto.serviceIds?.length ? {
+          services: {
+            create: createBarberDto.serviceIds.map(serviceId => ({
+              serviceId,
+            })),
+          },
+        } : {}),
       },
       include: {
         user: {
@@ -65,6 +73,11 @@ export class BarbersService {
             email: true,
             phone: true,
             avatar: true,
+          },
+        },
+        services: {
+          include: {
+            service: true,
           },
         },
       },
@@ -323,6 +336,23 @@ export class BarbersService {
       ? Math.max(0, Math.min(100, Number((updateBarberDto as any).commission))) / 100
       : undefined;
 
+    // Se serviceIds foi fornecido, atualizar relações de serviços
+    if (updateBarberDto.serviceIds !== undefined) {
+      // Remover todas as relações existentes e criar novas
+      await this.prisma.barberService.deleteMany({
+        where: { barberId: id },
+      });
+
+      if (updateBarberDto.serviceIds.length > 0) {
+        await this.prisma.barberService.createMany({
+          data: updateBarberDto.serviceIds.map(serviceId => ({
+            barberId: id,
+            serviceId,
+          })),
+        });
+      }
+    }
+
     return this.prisma.barber.update({
       where: { id },
       data: {
@@ -338,6 +368,11 @@ export class BarbersService {
             email: true,
             phone: true,
             avatar: true,
+          },
+        },
+        services: {
+          include: {
+            service: true,
           },
         },
       },
@@ -369,18 +404,29 @@ export class BarbersService {
   async remove(id: string, tenantId: string) {
     const barber = await this.prisma.barber.findFirst({
       where: { id, tenantId },
+      include: { user: true },
     });
 
     if (!barber) {
       throw new NotFoundException('Barbeiro não encontrado');
     }
 
-    // Soft delete - apenas desativa o barbeiro
-    await this.prisma.barber.update({
-      where: { id },
-      data: { isActive: false },
+    // Hard delete - remove barbeiro e usuário associado
+    // A cascata do Prisma cuida de remover BarberService, schedules, etc.
+    await this.prisma.$transaction(async (tx) => {
+      // Primeiro remove o barbeiro (isso remove BarberService, schedules via cascade)
+      await tx.barber.delete({
+        where: { id },
+      });
+
+      // Depois remove o usuário associado
+      if (barber.userId) {
+        await tx.user.delete({
+          where: { id: barber.userId },
+        });
+      }
     });
 
-    return { message: 'Barbeiro desativado com sucesso' };
+    return { message: 'Colaborador removido com sucesso' };
   }
 }

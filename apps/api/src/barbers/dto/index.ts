@@ -7,10 +7,15 @@ export class CreateBarberDto {
   @IsNotEmpty({ message: 'O usuário é obrigatório' })
   userId: string;
 
-  @ApiProperty({ example: ['Corte tradicional', 'Barba'] })
+  @ApiProperty({ example: ['Corte tradicional', 'Barba'], deprecated: true })
   @IsArray({ message: 'Especialidades devem ser uma lista de textos' })
   @IsOptional()
   specialties?: string[];
+
+  @ApiProperty({ example: ['service-id-1', 'service-id-2'], description: 'IDs dos serviços que o barbeiro realiza' })
+  @IsArray({ message: 'serviceIds deve ser um array de IDs de serviços' })
+  @IsOptional()
+  serviceIds?: string[];
 
   @ApiProperty({ example: 30, description: 'Porcentagem de comissão (0-100)' })
   @IsNumber({}, { message: 'A comissão deve ser um número' })
@@ -25,10 +30,15 @@ export class CreateBarberDto {
 }
 
 export class UpdateBarberDto {
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, deprecated: true })
   @IsOptional()
   @IsArray()
   specialties?: string[];
+
+  @ApiProperty({ required: false, description: 'IDs dos serviços que o barbeiro realiza' })
+  @IsOptional()
+  @IsArray()
+  serviceIds?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
