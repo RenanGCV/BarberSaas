@@ -28,19 +28,19 @@ async function main() {
   const hashedPassword = await bcrypt.hash('123456', 10);
 
   // ============= CRIAR BARBEARIA 1 =============
-  console.log('🏪 Criando Barbearia Premium...');
+  console.log('🏪 Criando Barbearia Carioca...');
   
   const tenant1 = await prisma.tenant.create({
     data: {
-      name: 'Barbearia Premium',
-      slug: 'barbearia-premium',
-      phone: '(11) 98765-4321',
+      name: 'Barbearia Carioca',
+      slug: 'barbearia-carioca',
+      phone: '(21) 98765-4321',
       address: 'Rua das Flores, 123',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01234-567',
-      latitude: -23.5505,
-      longitude: -46.6333,
+      city: 'Rio de Janeiro',
+      state: 'RJ',
+      zipCode: '20000-000',
+      latitude: -22.9068,
+      longitude: -43.1729,
       openTime: '09:00',
       closeTime: '20:00',
       isActive: true,
@@ -50,10 +50,10 @@ async function main() {
   // Criar usuário proprietário (OWNER)
   const owner1 = await prisma.user.create({
     data: {
-      email: 'owner@barbearia.com',
+      email: 'henrique@barbeariacarioca.com',
       password: hashedPassword,
-      name: 'Carlos Silva',
-      phone: '(11) 98765-4321',
+      name: 'Henrique',
+      phone: '(21) 98765-4321',
       role: UserRole.OWNER,
       tenantId: tenant1.id,
     },
@@ -169,12 +169,12 @@ async function main() {
 
   console.log('✅ Seed concluído com sucesso!');
   console.log('\n📊 Resumo:');
-  console.log(`- 1 Barbearia`);
-  console.log(`- 1 Usuário Owner (Carlos Silva)`);
+  console.log(`- 1 Barbearia Carioca`);
+  console.log(`- 1 Usuário Owner (Henrique)`);
   console.log(`- ${allBarbers.length} Barbeiro(s)`);
   console.log(`- ${allServices.length} Serviços cadastrados`);
   console.log('\n👤 Credenciais de acesso:');
-  console.log('Owner: owner@barbearia.com / 123456');
+  console.log('Owner: henrique@barbeariacarioca.com / 123456');
 }
 
 main()
