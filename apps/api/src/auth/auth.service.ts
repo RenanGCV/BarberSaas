@@ -32,9 +32,24 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    const user = await this.prisma.user.findUnique({
+      where: { email: loginDto.email },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
 
     if (!user) {
+      throw new UnauthorizedException('Email ou senha inválidos');
+    }
+
+    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
+    if (!isPasswordValid) {
       throw new UnauthorizedException('Email ou senha inválidos');
     }
 
@@ -47,11 +62,14 @@ export class AuthService {
     // Salvar refresh token no banco
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
-    // Remover senha do retorno
-    const { password, ...userWithoutPassword } = user;
+    // Remover senha do retorno e adicionar tenantName
+    const { password, tenant, ...userWithoutPassword } = user;
 
     return {
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        tenantName: tenant?.name || null,
+      },
       ...tokens,
     };
   }

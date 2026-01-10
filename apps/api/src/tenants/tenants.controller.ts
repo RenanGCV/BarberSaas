@@ -4,6 +4,7 @@ import {
     Delete,
     Get,
     Param,
+    Patch,
     Post,
     Put,
     Query,
@@ -46,6 +47,26 @@ export class TenantsController {
   @ApiResponse({ status: 400, description: 'Parâmetros de localização inválidos' })
   searchNearby(@Query() searchDto: SearchNearbyDto) {
     return this.tenantsService.searchNearby(searchDto);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Buscar minha barbearia' })
+  @ApiResponse({ status: 200, description: 'Barbearia do usuário logado' })
+  @ApiResponse({ status: 401, description: 'Não autenticado' })
+  findMyTenant(@CurrentUser() user) {
+    return this.tenantsService.findOne(user.tenantId);
+  }
+
+  @Patch('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Atualizar minha barbearia' })
+  @ApiResponse({ status: 200, description: 'Barbearia atualizada com sucesso' })
+  @ApiResponse({ status: 401, description: 'Não autenticado' })
+  updateMyTenant(@Body() updateTenantDto: UpdateTenantDto, @CurrentUser() user) {
+    return this.tenantsService.update(user.tenantId, updateTenantDto, user.id);
   }
 
   @Get('slug/:slug')
